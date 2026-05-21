@@ -3,120 +3,99 @@
 ![RTL](https://img.shields.io/badge/RTL-Verilog-2f6f9f)
 ![Target](https://img.shields.io/badge/Target-PYNQ--Z2-1f8a70)
 ![Precision](https://img.shields.io/badge/Precision-INT8-f59e0b)
-![Status](https://img.shields.io/badge/Status-Work%20in%20Progress-64748b)
+![Status](https://img.shields.io/badge/Status-Restarting-64748b)
 
-A custom RTL accelerator project for running the CNN layer workload of
-YOLOv3-Tiny on the programmable logic of a PYNQ-Z2 FPGA board.
+A clean restart of a custom RTL accelerator for YOLOv3-Tiny CNN layers on the
+PYNQ-Z2 programmable logic.
 
-This project explores a lightweight hardware path where the processing system
-loads an image and quantized Darknet-format weights, transfers them to the
-programmable logic, and lets custom Verilog modules perform CNN operations such
-as convolution, padding, activation, and pooling.
+The project is intentionally scoped around the hardware/software boundary:
+offline tools prepare folded INT8 weights, the PS side moves images and feature
+maps through memory, and the PL side performs the expensive CNN datapath work in
+Verilog.
 
-> This is not a DPU deployment project. The goal is to understand and build the
-> CNN compute blocks directly in RTL.
+> The previous prototype has been preserved under `legacy/`. New development
+> starts from the structure below.
 
-## Project Snapshot
+## Scope
 
-| Area | Direction |
+| Layer | Responsibility |
 | --- | --- |
-| Target model | YOLOv3-Tiny |
-| Weight source | Pretrained Darknet YOLOv3-Tiny weights |
-| Precision goal | INT8 weights and activations |
-| Hardware target | PYNQ-Z2 / Zynq-7020 PL |
-| Software role | Image preprocessing, weight loading, PL control, post-processing |
-| PL role | CNN layer acceleration |
-| Main tools | Verilog HDL, Xilinx Vivado, PYNQ / SDK-side software |
+| Offline tools | Parse Darknet weights, fold BatchNorm, quantize parameters |
+| PS runtime | Load image/weights, manage DDR buffers, control PL, run YOLO decode and NMS |
+| PL accelerator | Run INT8 convolution, accumulation, activation, padding, and pooling |
+
+The first milestone is not full YOLO inference. It is one verified
+YOLOv3-Tiny-style convolution layer:
+
+```text
+INT8 input activation
++ INT8 folded weights
++ INT32 accumulation
++ requantized INT8 output
++ Python golden-output comparison
+```
+
+## Repository Layout
+
+```text
+.
+|-- docs/       Architecture notes and design decisions
+|-- legacy/     Preserved prototype files from the first iteration
+|-- models/     Model metadata and generated INT8 parameter notes
+|-- rtl/        New Verilog RTL source tree
+|-- scripts/    Offline conversion, quantization, and utility scripts
+|-- sw/         PS-side runtime and board-control software
+`-- tests/      Golden-model, RTL, and integration tests
+```
 
 ## System Concept
 
 ```mermaid
 flowchart LR
-    A["Pretrained YOLOv3-Tiny weights"] --> B["Weight parser"]
-    B --> C["BatchNorm folding"]
-    C --> D["INT8 quantization"]
-    E["Input image"] --> F["Preprocessing on PS"]
-    D --> G["PS memory / SDK"]
-    F --> G
-    G --> H["AXI transfer"]
-    H --> I["Custom CNN accelerator on PL"]
-    I --> J["Feature maps"]
-    J --> K["YOLO decode + NMS on PS"]
-    K --> L["Bounding boxes"]
+    subgraph Offline["Offline preparation"]
+        A["yolov3-tiny.cfg / .weights"] --> B["Parse weights"]
+        B --> C["Fold BatchNorm"]
+        C --> D["Quantize to INT8"]
+        D --> E["Layer parameter binaries"]
+    end
+
+    subgraph PS["PS runtime"]
+        F["Input image"] --> G["Preprocess"]
+        E --> H["DDR buffers"]
+        G --> H
+        H --> I["Layer scheduler"]
+        I --> J["YOLO decode + NMS"]
+    end
+
+    subgraph PL["PL accelerator"]
+        K["AXI interface"] --> L["Line/window buffer"]
+        L --> M["INT8 convolution engine"]
+        M --> N["Activation / pooling"]
+    end
+
+    I --> K
+    N --> H
+    J --> O["Detections"]
 ```
 
-## Hardware Blocks
+## Development Plan
 
-The repository is organized around small RTL blocks that can be verified and
-composed into a larger inference pipeline.
-
-| Block | Purpose |
-| --- | --- |
-| `conv_layer/` | 3x3 convolution, processing elements, systolic-array-style wiring |
-| `padding_layer/` | Row buffering and zero-padding experiments for image windows |
-| `maxpooling/` | 2x2 max-pooling units |
-| `batch_norm/` | Fixed-point batch normalization experiments |
-| `PYNQ/` | Image preprocessing notebook for board-side experimentation |
-| `Reference/` | Software reference scripts and model exploration notes |
-
-## Design Direction
-
-The long-term pipeline is:
-
-1. Parse `yolov3-tiny.cfg` and `yolov3-tiny.weights`.
-2. Fold BatchNorm parameters into convolution weights and bias.
-3. Quantize weights and activations to INT8.
-4. Use the PS side to load image data and quantized parameters.
-5. Stream feature maps and weights to the PL.
-6. Execute convolution, activation, and pooling in custom RTL.
-7. Return feature maps to the PS for YOLO decoding and NMS.
-
-The first milestone is intentionally smaller:
-
-```text
-One YOLOv3-Tiny convolution layer
-+ INT8 weights
-+ INT8 input activation
-+ INT32 accumulation
-+ requantized INT8 output
-+ software golden-output comparison
-```
-
-## Current Status
-
-This repository is an early-stage RTL prototype. Several core blocks exist, but
-the project is not yet a complete end-to-end YOLO inference implementation.
-
-- Convolution, pooling, padding, and batch-normalization experiments are present.
-- The top-level integration is still under development.
-- Weight parsing, BatchNorm folding, and INT8 calibration need to be formalized.
-- Reproducible simulation scripts and Vivado project automation are planned.
-
-## Roadmap
-
-- [ ] Clean up duplicate RTL modules and define a single source tree.
-- [ ] Add deterministic Verilog testbenches for each hardware block.
+- [ ] Define fixed-point formats for input, weight, accumulator, and output.
 - [ ] Build a Python golden model for one YOLOv3-Tiny convolution layer.
-- [ ] Export folded and quantized layer weights.
-- [ ] Match RTL output against the Python golden output.
-- [ ] Add AXI-based PS-to-PL data movement.
-- [ ] Chain convolution, activation, and pooling blocks.
-- [ ] Document resource utilization and timing on PYNQ-Z2.
+- [ ] Implement a clean INT8 convolution RTL block in `rtl/`.
+- [ ] Add deterministic RTL tests and compare against golden outputs.
+- [ ] Add folded-weight export scripts under `scripts/`.
+- [ ] Add PS-side buffer/control code under `sw/`.
+- [ ] Chain convolution, activation, and pooling.
+- [ ] Measure timing/resource usage on PYNQ-Z2.
 
-## Why This Project Matters
+## Design Notes
 
-YOLO deployments on PYNQ-Z2 often rely on Xilinx DPU flows, where the neural
-network is compiled for a vendor-provided accelerator. This project takes the
-lower-level route: implementing the CNN datapath directly in RTL to study how
-quantized inference maps onto FPGA logic.
-
-That makes the project useful as a learning platform for:
-
-- fixed-point CNN arithmetic
-- weight quantization and BatchNorm folding
-- FPGA dataflow design
-- PS/PL communication on Zynq
-- hardware/software co-design for edge AI
+- This is a custom RTL accelerator path, not a Xilinx DPU deployment flow.
+- BatchNorm should be folded offline whenever possible.
+- YOLO decode and NMS should stay on the PS side at first.
+- Large pretrained weights and generated binaries should not be committed.
+- Legacy files are kept for reference, but new RTL should be written in `rtl/`.
 
 ## References
 

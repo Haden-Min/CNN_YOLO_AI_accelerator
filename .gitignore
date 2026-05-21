@@ -1,0 +1,30 @@
+# Generated model artifacts
+models/raw/
+models/generated/
+*.weights
+*.bin
+*.npy
+*.npz
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Vivado / FPGA build outputs
+.Xil/
+*.jou
+*.log
+*.str
+*.wdb
+*.xpr
+*.runs/
+*.cache/
+*.hw/
+*.ip_user_files/
+
+# Local OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
