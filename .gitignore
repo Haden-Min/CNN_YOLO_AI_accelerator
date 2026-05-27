@@ -1,6 +1,7 @@
 # Generated model artifacts
 models/raw/
 models/generated/
+sw/fixture/generated/
 *.weights
 *.bin
 *.npy
@@ -28,3 +29,4 @@ venv/
 .DS_Store
 Thumbs.db
 .vscode/
+~$*.docx
