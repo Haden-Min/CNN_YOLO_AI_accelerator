@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 // -----------------------------------------------------------------------------
-// Instantiation example
+// DUT instance
 // -----------------------------------------------------------------------------
 /*
 single_conv_fsm #(
@@ -41,22 +41,22 @@ single_conv_fsm #(
 */
 
 module single_conv_fsm #(
-    parameter   DATA_WIDTH  = 8         ,   // INT8 data width
-    parameter   ACC_WIDTH   = 32        ,   // Accumulator/output data width (INT32)
+    parameter   DATA_WIDTH  = 8         ,   // INT8 Data
+    parameter   ACC_WIDTH   = 32        ,   // Accumulator's output data size is INT32
 
-    parameter   IC          = 1         ,   // Number of input channels
-    parameter   OC          = 1         ,   // Number of output channels
+    parameter   IC          = 1         ,   // # of Input Channel
+    parameter   OC          = 1         ,   // # of Output Channel
 
-    parameter   IN_H        = 5         ,   // Input height
-    parameter   IN_W        = 5         ,   // Input width
+    parameter   IN_H        = 5         ,   // Input Height
+    parameter   IN_W        = 5         ,   // Input Width
 
-    parameter   K_H         = 3         ,   // Kernel height
-    parameter   K_W         = 3         ,   // Kernel width
+    parameter   K_H         = 3         ,   // Kernel Height
+    parameter   K_W         = 3         ,   // Kernel Width
 
-    parameter   STRIDE      = 1         ,   // Stride
-    parameter   PADDING     = 0         ,   // Padding
+    parameter   STRIDE      = 1         ,   // stride
+    parameter   PADDING     = 0         ,   // padding
 
-    parameter   OUT_H       = 3         ,   // Output height
+    parameter   OUT_H       = 3         ,   // Output Height
     parameter   OUT_W       = 3         ,   // Output width
 
     // Data size calculation
@@ -71,24 +71,25 @@ module single_conv_fsm #(
     parameter   BIAS_ADDR_WIDTH     = (BIAS_SIZE    <= 1) ? 1 : $clog2(BIAS_SIZE)   ,
     parameter   OUT_ADDR_WIDTH      = (OUTPUT_SIZE  <= 1) ? 1 : $clog2(OUTPUT_SIZE)
 )(
-    // System interface
+    // system interface
     input   wire        clk_i           ,
     input   wire        rst_n           ,
     input   wire        start_i         ,
 
-    // Memory address outputs
+    // output addr
     output  reg [INPUT_ADDR_WIDTH-1:0]      input_addr_o    ,
     output  reg [WEIGHT_ADDR_WIDTH-1:0]     weight_addr_o   ,
     output  reg [BIAS_ADDR_WIDTH-1:0]       bias_addr_o     ,
     output  reg [OUT_ADDR_WIDTH-1:0]        output_addr_o   ,
 
-    // Control outputs
+    // output ctrl signal
     output  reg         busy_o          ,   // High while the convolution sequence is active
     output  reg         done_o          ,   // High when the convolution sequence is complete
     output  reg         output_we_o     ,   // High for one cycle when writing an output element
     output  reg         mac_en_o        ,   // Enables one MAC operation in the datapath
     output  reg         acc_load_bias_o     // Requests bias load into the accumulator
 );
+    // Local parameter setup
     // Loop counter width calculation
     localparam  IC_WIDTH        = (IC       <= 1) ? 1 : $clog2(IC)      ;
     localparam  OC_WIDTH        = (OC       <= 1) ? 1 : $clog2(OC)      ;
@@ -97,7 +98,7 @@ module single_conv_fsm #(
     localparam  K_H_WIDTH       = (K_H      <= 1) ? 1 : $clog2(K_H)     ;
     localparam  K_W_WIDTH       = (K_W      <= 1) ? 1 : $clog2(K_W)     ;
 
-    // Loop counters
+    // local register
     reg [OC_WIDTH-1:0]      oc_counter_r    ;
     reg [OUT_H_WIDTH-1:0]   oh_counter_r    ;
     reg [OUT_W_WIDTH-1:0]   ow_counter_r    ;
@@ -106,10 +107,11 @@ module single_conv_fsm #(
     reg [K_H_WIDTH-1:0]     kh_counter_r    ;
     reg [K_W_WIDTH-1:0]     kw_counter_r    ;
 
-    // Loop terminal flags
+    // local wire
     wire    last_mac_op_w       ;
     wire    last_output_op_w    ;
 
+    // assign
     assign  last_mac_op_w   =   (ic_counter_r == IC     - 1) &&
                                 (kh_counter_r == K_H    - 1) &&
                                 (kw_counter_r == K_W    - 1) ;
@@ -118,14 +120,14 @@ module single_conv_fsm #(
                                 (oh_counter_r == OUT_H  - 1) &&
                                 (ow_counter_r == OUT_W  - 1) ;
 
-    // Input window coordinates
+    // Flat Addr Operation
     wire    [INPUT_ADDR_WIDTH-1:0]   ih_w                               ;
     wire    [INPUT_ADDR_WIDTH-1:0]   iw_w                               ;
 
     assign  ih_w    = oh_counter_r * STRIDE + kh_counter_r - PADDING    ;
     assign  iw_w    = ow_counter_r * STRIDE + kw_counter_r - PADDING    ;
 
-    // FSM state encoding
+    // FSM State
     // IDLE -> LOAD_BIAS_ADDR -> LOAD_BIAS -> MAC_ADDR -> MAC_EXEC -> WRITE_OUT -> NEXT_OUT -> DONE
     reg [2:0] present_state, next_state;
 
@@ -138,7 +140,7 @@ module single_conv_fsm #(
                 NEXT_OUT        = 3'b101    ,   // Move to the next output element
                 DONE            = 3'b100    ;   // Signal completion
 
-    // FSM phase 1: state register
+    // fsm phase 1: next state -> present state control
     always @(posedge clk_i) begin
         if (!rst_n) begin
             present_state <= IDLE       ;
@@ -148,7 +150,7 @@ module single_conv_fsm #(
         end
     end
 
-    // FSM phase 2: next-state control
+    // fsm phase 2: state control
     always @(*) begin
         case (present_state)
             IDLE: begin
@@ -209,7 +211,7 @@ module single_conv_fsm #(
         endcase
     end
 
-    // FSM phase 3: registered control and counter outputs
+    // fsm phase 3: signal control
     always @(posedge clk_i) begin
         if (!rst_n) begin
             busy_o              <= 1'b0                         ;
@@ -250,7 +252,7 @@ module single_conv_fsm #(
                 end
 
                 LOAD_BIAS_ADDR: begin
-                    busy_o              <= 1'b1                 ;
+                    busy_o              <= 1'b1                 ;   // toggle
                     done_o              <= 1'b0                 ;
                     output_we_o         <= 1'b0                 ;
                     mac_en_o            <= 1'b0                 ;
@@ -258,6 +260,7 @@ module single_conv_fsm #(
 
                     bias_addr_o         <= oc_counter_r         ;
 
+                    // initialization for 2nd ~ operation
                     ic_counter_r        <= {IC_WIDTH{1'b0}}     ;
                     kh_counter_r        <= {K_H_WIDTH{1'b0}}    ;
                     kw_counter_r        <= {K_W_WIDTH{1'b0}}    ;
@@ -268,7 +271,7 @@ module single_conv_fsm #(
                     done_o              <= 1'b0     ;
                     output_we_o         <= 1'b0     ;
                     mac_en_o            <= 1'b0     ;
-                    acc_load_bias_o     <= 1'b1     ;
+                    acc_load_bias_o     <= 1'b1     ;   // toggle
                 end
 
                 MAC_ADDR: begin
@@ -276,7 +279,7 @@ module single_conv_fsm #(
                     done_o              <= 1'b0     ;
                     output_we_o         <= 1'b0     ;
                     mac_en_o            <= 1'b0     ;
-                    acc_load_bias_o     <= 1'b0     ;
+                    acc_load_bias_o     <= 1'b0     ;   // toggle
 
                     input_addr_o        <= ic_counter_r * IN_H * IN_W
                                         + ih_w * IN_W
@@ -292,7 +295,7 @@ module single_conv_fsm #(
                     busy_o              <= 1'b1     ;
                     done_o              <= 1'b0     ;
                     output_we_o         <= 1'b0     ;
-                    mac_en_o            <= 1'b1     ;
+                    mac_en_o            <= 1'b1     ;   // toggle
                     acc_load_bias_o     <= 1'b0     ;
 
                     if (!last_mac_op_w) begin
@@ -321,15 +324,15 @@ module single_conv_fsm #(
                 WRITE_OUT: begin
                     busy_o              <= 1'b1     ;
                     done_o              <= 1'b0     ;
-                    output_we_o         <= 1'b1     ;
-                    mac_en_o            <= 1'b0     ;
+                    output_we_o         <= 1'b1     ;   // toggle
+                    mac_en_o            <= 1'b0     ;   // toggle
                     acc_load_bias_o     <= 1'b0     ;
                 end
 
                 NEXT_OUT: begin
                     busy_o              <= 1'b1     ;
                     done_o              <= 1'b0     ;
-                    output_we_o         <= 1'b0     ;
+                    output_we_o         <= 1'b0     ;   // toggle
                     mac_en_o            <= 1'b0     ;
                     acc_load_bias_o     <= 1'b0     ;
 
@@ -352,8 +355,8 @@ module single_conv_fsm #(
                 end
 
                 DONE: begin
-                    busy_o              <= 1'b0     ;
-                    done_o              <= 1'b1     ;
+                    busy_o              <= 1'b0     ;   // toggle
+                    done_o              <= 1'b1     ;   // toggle
                     output_we_o         <= 1'b0     ;
                     mac_en_o            <= 1'b0     ;
                     acc_load_bias_o     <= 1'b0     ;
