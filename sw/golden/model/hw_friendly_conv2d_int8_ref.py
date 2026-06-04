@@ -130,19 +130,19 @@ def hw_conv2d_int8_acc(
     PADDING: int,
 ) -> list[int]:
     output_size = OC * OUTPUT_H * OUTPUT_W
-    output_mem = [0] * output_size
+    output_mem = [0] * output_size #if output_size=5 -> output_mem = [0,0,0,0,0]
     acc_min, acc_max = signed_range(32)
 
-    for oc in range(OC):
+    for oc in range(OC): #관점 : 출력 매트리스의 n,m번쨰를 채우고 싶은데 그러려면 어떤 데이터의 몇 번째 데이터가 필요한가
         for oh in range(OUTPUT_H):
             for ow in range(OUTPUT_W):
-                acc = int(bias_mem[oc])
+                acc = int(bias_mem[oc]) #누산기를 bias값으로 초기화
 
-                for ic in range(IC):
-                    for kh in range(KERNEL_H):
-                        ih = oh * STRIDE + kh - PADDING
+                for ic in range(IC): #소문자는 주소를 의미. 한 바퀴에 outchannel의 원소 한 칸씩 만들어짐.
+                    for kh in range(KERNEL_H): #커널의 col을 따라 계산
+                        ih = oh * STRIDE + kh - PADDING #입력의 몇 번쨰 height를 읽어야 하는가? stride만큼의 보폭만큼 곱해줘야하고, 패딩해준만큼 빼주어야 입력의 주소가 나온다.
 
-                        for kw in range(KERNEL_W):
+                        for kw in range(KERNEL_W):#커널의 row를 따라서 계산
                             iw = ow * STRIDE + kw - PADDING
 
                             if ih < 0 or ih >= INPUT_H or iw < 0 or iw >= INPUT_W:
