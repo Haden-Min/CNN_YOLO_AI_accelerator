@@ -59,6 +59,8 @@ module single_conv_fsm #(
     parameter   OUT_H       = 3         ,   // Output Height
     parameter   OUT_W       = 3         ,   // Output width
 
+    parameter   PARALLEL_KERNEL = 0     ,   // 0: scalar kh/kw MAC loop, 1: one MAC per 3x3 kernel window
+
     // Data size calculation
     parameter   INPUT_SIZE  = IC * IN_H * IN_W      ,
     parameter   WEIGHT_SIZE = OC * IC * K_H * K_W   ,
@@ -87,7 +89,12 @@ module single_conv_fsm #(
     output  reg         done_o          ,   // High when the convolution sequence is complete
     output  reg         output_we_o     ,   // High for one cycle when writing an output element
     output  reg         mac_en_o        ,   // Enables one MAC operation in the datapath
-    output  reg         acc_load_bias_o     // Requests bias load into the accumulator
+    output  reg         acc_load_bias_o ,   // Requests bias load into the accumulator
+
+    output  wire [31:0] oc_counter_o    ,
+    output  wire [31:0] oh_counter_o    ,
+    output  wire [31:0] ow_counter_o    ,
+    output  wire [31:0] ic_counter_o
 );
     // Local parameter setup
     // Loop counter width calculation
@@ -109,16 +116,28 @@ module single_conv_fsm #(
 
     // local wire
     wire    last_mac_op_w       ;
+    wire    last_scalar_mac_op_w;
+    wire    last_kernel_mac_op_w;
     wire    last_output_op_w    ;
 
     // assign
-    assign  last_mac_op_w   =   (ic_counter_r == IC     - 1) &&
-                                (kh_counter_r == K_H    - 1) &&
-                                (kw_counter_r == K_W    - 1) ;
+    assign  last_scalar_mac_op_w = (ic_counter_r == IC     - 1) &&
+                                   (kh_counter_r == K_H    - 1) &&
+                                   (kw_counter_r == K_W    - 1) ;
+
+    assign  last_kernel_mac_op_w = (ic_counter_r == IC     - 1) ;
+
+    assign  last_mac_op_w        = PARALLEL_KERNEL ? last_kernel_mac_op_w
+                                                   : last_scalar_mac_op_w ;
 
     assign  last_output_op_w =  (oc_counter_r == OC     - 1) &&
                                 (oh_counter_r == OUT_H  - 1) &&
                                 (ow_counter_r == OUT_W  - 1) ;
+
+    assign  oc_counter_o = oc_counter_r ;
+    assign  oh_counter_o = oh_counter_r ;
+    assign  ow_counter_o = ow_counter_r ;
+    assign  ic_counter_o = ic_counter_r ;
 
     // Flat Addr Operation
     wire    [INPUT_ADDR_WIDTH-1:0]   ih_w                               ;
@@ -281,14 +300,24 @@ module single_conv_fsm #(
                     mac_en_o            <= 1'b0     ;
                     acc_load_bias_o     <= 1'b0     ;   // toggle
 
-                    input_addr_o        <= ic_counter_r * IN_H * IN_W
+                    if (PARALLEL_KERNEL) begin
+                        input_addr_o    <= ic_counter_r * IN_H * IN_W
+                                        + (oh_counter_r * STRIDE - PADDING) * IN_W
+                                        + (ow_counter_r * STRIDE - PADDING) ;
+
+                        weight_addr_o   <= oc_counter_r * IC * K_H * K_W
+                                        + ic_counter_r * K_H * K_W ;
+                    end
+                    else begin
+                        input_addr_o    <= ic_counter_r * IN_H * IN_W
                                         + ih_w * IN_W
                                         + iw_w ;
 
-                    weight_addr_o       <= oc_counter_r * IC * K_H * K_W
+                        weight_addr_o   <= oc_counter_r * IC * K_H * K_W
                                         + ic_counter_r * K_H * K_W
                                         + kh_counter_r * K_W
                                         + kw_counter_r  ;
+                    end
                 end
 
                 MAC_EXEC: begin
@@ -299,19 +328,24 @@ module single_conv_fsm #(
                     acc_load_bias_o     <= 1'b0     ;
 
                     if (!last_mac_op_w) begin
-                        if (kw_counter_r == K_W - 1) begin
-                            kw_counter_r <= {K_W_WIDTH{1'b0}}       ;
-
-                            if (kh_counter_r == K_H - 1) begin
-                                kh_counter_r <= {K_H_WIDTH{1'b0}}   ;
-                                ic_counter_r <= ic_counter_r + 1'b1 ;
-                            end
-                            else begin
-                                kh_counter_r <= kh_counter_r + 1'b1 ;
-                            end
+                        if (PARALLEL_KERNEL) begin
+                            ic_counter_r <= ic_counter_r + 1'b1 ;
                         end
                         else begin
-                            kw_counter_r <= kw_counter_r + 1'b1     ;
+                            if (kw_counter_r == K_W - 1) begin
+                                kw_counter_r <= {K_W_WIDTH{1'b0}}       ;
+
+                                if (kh_counter_r == K_H - 1) begin
+                                    kh_counter_r <= {K_H_WIDTH{1'b0}}   ;
+                                    ic_counter_r <= ic_counter_r + 1'b1 ;
+                                end
+                                else begin
+                                    kh_counter_r <= kh_counter_r + 1'b1 ;
+                                end
+                            end
+                            else begin
+                                kw_counter_r <= kw_counter_r + 1'b1     ;
+                            end
                         end
                     end
                     else begin
