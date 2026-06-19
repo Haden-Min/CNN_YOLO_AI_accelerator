@@ -1,13 +1,38 @@
 # RTL
 
-New Verilog RTL belongs here.
+This directory keeps the active Phase 2 single-conv design separate from the
+fixed legacy/reference files that were already in the repository.
 
-Planned structure:
+Use these filelists as the source of truth for the current Vivado project:
 
-- `core/` for arithmetic and CNN datapath blocks
-- `buffers/` for line buffers and window generators
-- `interfaces/` for AXI-facing modules
-- `top/` for integration wrappers
-- `tb/` for simulation-only testbenches
+- `rtl/filelists/phase2_pipeline_rtl.f`: synthesizable RTL only
+- `rtl/filelists/phase2_pipeline_tb.f`: RTL plus the PS/PL-style testbench
 
-Start small: one INT8 convolution layer that matches a Python golden model.
+Current active hierarchy:
+
+```text
+top_single_conv_pipeline
+  conv_control_unit
+    single_conv_fsm
+  conv_memory_unit
+    conv_input_mem
+    conv_weight_mem
+    conv_bias_mem
+    conv_output_mem
+  conv_datapath
+    mlt9_at
+      mlt
+      at
+    acc
+```
+
+Fixed legacy/reference files are not part of new development. Do not add new
+modules there, and do not add these files to the Phase 2 Vivado project unless
+you are intentionally restoring that older path:
+
+- `rtl/single_conv/`
+- `rtl/pipeline_conv/si.v`
+- `rtl/pipeline_conv/wbuf.v`
+- `rtl/pipeline_conv/weight_buffer_9.v`
+- `rtl/pipeline_conv/activation.v`
+- root-level `rtl/si.v`, `rtl/wbuf.v`, `rtl/at.v`
