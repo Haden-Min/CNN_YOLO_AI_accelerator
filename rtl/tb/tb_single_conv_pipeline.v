@@ -233,19 +233,55 @@ module tb_single_conv_pipeline;
         end
     endtask
 
-    task ps_write_input_memory;
+    task ps_write_input_row;
+        input integer row_idx;
+        integer ch_idx;
+        integer col_idx;
+        integer flat_idx;
         begin
-            $display("[PS] write input memory");
+            $display("[PS] stream input row=%0d into line buffer", row_idx);
             input_load_en_i = 1'b1;
-            for (i = 0; i < INPUT_SIZE; i = i + 1) begin
-                input_load_addr_i = i[INPUT_ADDR_WIDTH-1:0];
-                input_stream_data_i = input_mem[i];
-                @(posedge clk);
+            for (ch_idx = 0; ch_idx < IC; ch_idx = ch_idx + 1) begin
+                for (col_idx = 0; col_idx < IN_W; col_idx = col_idx + 1) begin
+                    flat_idx = ch_idx * IN_H * IN_W + row_idx * IN_W + col_idx;
+                    input_load_addr_i = flat_idx[INPUT_ADDR_WIDTH-1:0];
+                    input_stream_data_i = input_mem[flat_idx];
+                    @(posedge clk);
+                    @(negedge clk);
+                end
             end
             input_load_en_i = 1'b0;
             input_load_addr_i = {INPUT_ADDR_WIDTH{1'b0}};
             input_stream_data_i = {DATA_WIDTH{1'b0}};
-            @(posedge clk);
+        end
+    endtask
+
+    task ps_write_initial_input_lines;
+        integer row_idx;
+        begin
+            $display("[PS] preload first %0d input rows into line buffer", K_H);
+            for (row_idx = 0; row_idx < K_H; row_idx = row_idx + 1) begin
+                ps_write_input_row(row_idx);
+            end
+        end
+    endtask
+
+    task ps_stream_remaining_input_lines;
+        integer next_row_idx;
+        integer output_row_done_addr;
+        begin
+            next_row_idx = K_H;
+            while (next_row_idx < IN_H) begin
+                output_row_done_addr = (next_row_idx - K_H) * OUT_W + (OUT_W - 1);
+
+                while (!(output_we_o && output_addr_o == output_row_done_addr[OUTPUT_ADDR_WIDTH-1:0])) begin
+                    @(posedge clk);
+                    #1;
+                end
+
+                ps_write_input_row(next_row_idx);
+                next_row_idx = next_row_idx + 1;
+            end
         end
     endtask
 
@@ -257,11 +293,11 @@ module tb_single_conv_pipeline;
                 weight_load_addr_i = i[WEIGHT_ADDR_WIDTH-1:0];
                 weight_stream_data_i = weight_mem[i];
                 @(posedge clk);
+                @(negedge clk);
             end
             weight_load_en_i = 1'b0;
             weight_load_addr_i = {WEIGHT_ADDR_WIDTH{1'b0}};
             weight_stream_data_i = {DATA_WIDTH{1'b0}};
-            @(posedge clk);
         end
     endtask
 
@@ -273,17 +309,17 @@ module tb_single_conv_pipeline;
                 bias_load_addr_i = i[BIAS_ADDR_WIDTH-1:0];
                 bias_load_data_i = bias_mem[i];
                 @(posedge clk);
+                @(negedge clk);
             end
             bias_load_en_i = 1'b0;
             bias_load_addr_i = {BIAS_ADDR_WIDTH{1'b0}};
             bias_load_data_i = {ACC_WIDTH{1'b0}};
-            @(posedge clk);
         end
     endtask
 
     task ps_load_operands;
         begin
-            ps_write_input_memory();
+            ps_write_initial_input_lines();
             ps_write_weight_memory();
             ps_write_bias_memory();
         end
@@ -380,7 +416,11 @@ module tb_single_conv_pipeline;
 
         ps_load_operands();
         ps_start_accelerator();
-        ps_wait_done_and_check_live_writes();
+
+        fork
+            ps_stream_remaining_input_lines();
+            ps_wait_done_and_check_live_writes();
+        join
 
         if (cycles >= 200) begin
             $display("FAIL: timeout waiting for done_o");

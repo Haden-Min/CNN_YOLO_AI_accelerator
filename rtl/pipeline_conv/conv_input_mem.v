@@ -7,6 +7,7 @@ module conv_input_mem #(
     parameter IN_W    = 5,
     parameter K_H     = 3,
     parameter K_W     = 3,
+    parameter STRIDE  = 1,
 
     parameter INPUT_SIZE = IC * IN_H * IN_W,
     parameter INPUT_ADDR_WIDTH = (INPUT_SIZE <= 1) ? 1 : $clog2(INPUT_SIZE)
@@ -19,29 +20,61 @@ module conv_input_mem #(
     input wire signed [DATA_WIDTH-1:0] write_data_i,
 
     input wire [INPUT_ADDR_WIDTH-1:0] window_base_addr_i,
+    input wire window_req_i,
 
-    output wire signed [K_H*K_W*DATA_WIDTH-1:0] window_o
+    output wire signed [K_H*K_W*DATA_WIDTH-1:0] window_o,
+    output wire window_valid_o
 );
 
-genvar lane;
-generate
-    for (lane = 0; lane < K_H*K_W; lane = lane + 1) begin : gen_input_bram_lane
-        localparam integer KH_IDX = lane / K_W;
-        localparam integer KW_IDX = lane % K_W;
+wire signed [K_H*K_W*DATA_WIDTH-1:0] full_window_w;
+wire full_window_valid_w;
+wire signed [K_H*K_W*DATA_WIDTH-1:0] append_window_w;
+wire append_window_valid_w;
 
-        (* ram_style = "block" *) reg signed [DATA_WIDTH-1:0] mem_r [0:INPUT_SIZE-1];
-        reg signed [DATA_WIDTH-1:0] lane_data_r;
+conv_input_line_buffer #(
+    .DATA_WIDTH(DATA_WIDTH),
+    .IC(IC),
+    .IN_H(IN_H),
+    .IN_W(IN_W),
+    .K_H(K_H),
+    .K_W(K_W),
+    .STRIDE(STRIDE),
+    .INPUT_SIZE(INPUT_SIZE),
+    .INPUT_ADDR_WIDTH(INPUT_ADDR_WIDTH)
+) u_line_buffer (
+    .clk(clk),
+    .rst_n(rst_n),
+    .write_en_i(write_en_i),
+    .write_addr_i(write_addr_i),
+    .write_data_i(write_data_i),
+    .window_base_addr_i(window_base_addr_i),
+    .full_window_o(full_window_w),
+    .full_window_valid_o(full_window_valid_w),
+    .append_window_o(append_window_w),
+    .append_window_valid_o(append_window_valid_w)
+);
 
-        always @(posedge clk) begin
-            if (write_en_i) begin
-                mem_r[write_addr_i] <= write_data_i;
-            end
-
-            lane_data_r <= mem_r[window_base_addr_i + KH_IDX * IN_W + KW_IDX];
-        end
-
-        assign window_o[(lane+1)*DATA_WIDTH-1:lane*DATA_WIDTH] = lane_data_r;
-    end
-endgenerate
+conv_window_buffer #(
+    .DATA_WIDTH(DATA_WIDTH),
+    .IC(IC),
+    .IN_H(IN_H),
+    .IN_W(IN_W),
+    .K_H(K_H),
+    .K_W(K_W),
+    .STRIDE(STRIDE),
+    .INPUT_SIZE(INPUT_SIZE),
+    .INPUT_ADDR_WIDTH(INPUT_ADDR_WIDTH)
+) u_window_buffer (
+    .clk(clk),
+    .rst_n(rst_n),
+    .request_i(window_req_i),
+    .window_base_addr_i(window_base_addr_i),
+    .full_window_i(full_window_w),
+    .full_window_valid_i(full_window_valid_w),
+    .append_window_i(append_window_w),
+    .append_window_valid_i(append_window_valid_w),
+    .window_o(window_o),
+    .window_ready_o(window_valid_o)
+);
 
 endmodule

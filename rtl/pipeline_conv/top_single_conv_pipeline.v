@@ -4,6 +4,7 @@ module top_single_conv_pipeline #(
     parameter DATA_WIDTH = 8,
     parameter MUL_WIDTH  = 16,
     parameter ACC_WIDTH  = 32,
+    parameter ACC_BANK_SIZE = 9,
 
     parameter IC      = 1,
     parameter OC      = 1,
@@ -58,13 +59,22 @@ module top_single_conv_pipeline #(
 
 wire [INPUT_ADDR_WIDTH-1:0] control_input_base_addr_w;
 wire [WEIGHT_ADDR_WIDTH-1:0] control_weight_base_addr_w;
+wire [OUTPUT_ADDR_WIDTH-1:0] control_output_addr_w;
+wire control_output_we_w;
 wire acc_load_bias_w;
 wire mac_en_w;
+wire mac_last_w;
+wire input_window_valid_w;
+wire input_window_req_w;
 
 wire signed [K_H*K_W*DATA_WIDTH-1:0] input_window_w;
 wire signed [K_H*K_W*DATA_WIDTH-1:0] weight_window_w;
 wire signed [ACC_WIDTH-1:0] bias_data_w;
 wire signed [ACC_WIDTH-1:0] acc_w;
+wire datapath_result_valid_w;
+wire [OUTPUT_ADDR_WIDTH-1:0] datapath_result_addr_w;
+wire signed [ACC_WIDTH-1:0] datapath_result_data_w;
+wire datapath_busy_w;
 
 conv_control_unit #(
     .DATA_WIDTH(DATA_WIDTH),
@@ -87,14 +97,19 @@ conv_control_unit #(
     .clk(clk),
     .rst_n(rst_n),
     .start_i(start_i),
+    .input_window_valid_i(input_window_valid_w),
+    .datapath_result_valid_i(datapath_result_valid_w),
+    .datapath_result_addr_i(datapath_result_addr_w),
     .input_base_addr_o(control_input_base_addr_w),
     .weight_base_addr_o(control_weight_base_addr_w),
     .bias_addr_o(bias_addr_o),
-    .output_addr_o(output_addr_o),
+    .output_addr_o(control_output_addr_w),
     .busy_o(busy_o),
     .done_o(done_o),
-    .output_we_o(output_we_o),
+    .input_window_req_o(input_window_req_w),
+    .output_we_o(control_output_we_w),
     .mac_en_o(mac_en_w),
+    .mac_last_o(mac_last_w),
     .acc_load_bias_o(acc_load_bias_w)
 );
 
@@ -128,13 +143,15 @@ conv_memory_unit #(
     .bias_load_addr_i(bias_load_addr_i),
     .bias_load_data_i(bias_load_data_i),
     .input_base_addr_i(control_input_base_addr_w),
+    .input_window_req_i(input_window_req_w),
     .weight_base_addr_i(control_weight_base_addr_w),
     .bias_read_addr_i(bias_addr_o),
-    .output_write_en_i(output_we_o),
-    .output_write_addr_i(output_addr_o),
-    .output_write_data_i(acc_w),
+    .output_write_en_i(datapath_result_valid_w),
+    .output_write_addr_i(datapath_result_addr_w),
+    .output_write_data_i(datapath_result_data_w),
     .output_read_addr_i(output_read_addr_i),
     .input_window_o(input_window_w),
+    .input_window_valid_o(input_window_valid_w),
     .weight_window_o(weight_window_w),
     .bias_data_o(bias_data_w),
     .output_read_data_o(output_read_data_o)
@@ -145,18 +162,28 @@ conv_datapath #(
     .MUL_WIDTH(MUL_WIDTH),
     .ACC_WIDTH(ACC_WIDTH),
     .K_H(K_H),
-    .K_W(K_W)
+    .K_W(K_W),
+    .OUTPUT_ADDR_WIDTH(OUTPUT_ADDR_WIDTH),
+    .ACC_BANK_SIZE(ACC_BANK_SIZE)
 ) u_datapath (
     .clk(clk),
     .rst_n(rst_n),
     .acc_load_bias_i(acc_load_bias_w),
     .mac_en_i(mac_en_w),
+    .mac_last_i(mac_last_w),
+    .output_addr_i(control_output_addr_w),
     .input_window_i(input_window_w),
     .weight_window_i(weight_window_w),
     .bias_i(bias_data_w),
-    .acc_o(acc_w)
+    .acc_o(acc_w),
+    .result_valid_o(datapath_result_valid_w),
+    .result_addr_o(datapath_result_addr_w),
+    .result_o(datapath_result_data_w),
+    .busy_o(datapath_busy_w)
 );
 
-assign output_data_o = acc_w;
+assign output_we_o   = datapath_result_valid_w;
+assign output_addr_o = datapath_result_valid_w ? datapath_result_addr_w : control_output_addr_w;
+assign output_data_o = datapath_result_data_w;
 
 endmodule

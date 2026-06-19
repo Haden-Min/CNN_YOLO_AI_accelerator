@@ -42,6 +42,7 @@ module tb_single_conv_fsm;
     wire done_o;
     wire output_we_o;
     wire mac_en_o;
+    wire mac_last_o;
     wire acc_load_bias_o;
 
     integer mac_cnt;
@@ -82,6 +83,9 @@ module tb_single_conv_fsm;
         .clk_i           (clk_i),
         .rst_n           (rst_n),
         .start_i         (start_i),
+        .input_window_valid_i(1'b1),
+        .datapath_result_valid_i(1'b1),
+        .datapath_result_addr_i(output_addr_o),
         .input_addr_o    (input_addr_o),
         .weight_addr_o   (weight_addr_o),
         .bias_addr_o     (bias_addr_o),
@@ -90,7 +94,9 @@ module tb_single_conv_fsm;
         .done_o          (done_o),
         .output_we_o     (output_we_o),
         .mac_en_o        (mac_en_o),
-        .acc_load_bias_o (acc_load_bias_o)
+        .mac_last_o      (mac_last_o),
+        .acc_load_bias_o (acc_load_bias_o),
+        .input_window_req_o()
     );
 
     initial begin
@@ -198,9 +204,9 @@ module tb_single_conv_fsm;
                 mac_cnt = mac_cnt + 1;
             end
 
-            if (output_we_o) begin
+            if (mac_last_o) begin
                 if (output_addr_o !== output_cnt) begin
-                    $display("[FAIL] output_addr mismatch at output_cnt=%0d: expected %0d, got %0d",
+                    $display("[FAIL] issued output_addr mismatch at output_cnt=%0d: expected %0d, got %0d",
                              output_cnt, output_cnt, output_addr_o);
                     err_cnt = err_cnt + 1;
                 end

@@ -28,6 +28,9 @@ module conv_control_unit #(
     input wire clk,
     input wire rst_n,
     input wire start_i,
+    input wire input_window_valid_i,
+    input wire datapath_result_valid_i,
+    input wire [OUTPUT_ADDR_WIDTH-1:0] datapath_result_addr_i,
 
     output wire [INPUT_ADDR_WIDTH-1:0] input_base_addr_o,
     output wire [WEIGHT_ADDR_WIDTH-1:0] weight_base_addr_o,
@@ -36,13 +39,16 @@ module conv_control_unit #(
 
     output wire busy_o,
     output wire done_o,
+    output wire input_window_req_o,
     output reg output_we_o,
     output reg mac_en_o,
+    output reg mac_last_o,
     output reg acc_load_bias_o
 );
 
 wire fsm_output_we_w;
 wire fsm_mac_en_w;
+wire fsm_mac_last_w;
 wire fsm_acc_load_bias_w;
 
 single_conv_fsm #(
@@ -63,6 +69,9 @@ single_conv_fsm #(
     .clk_i(clk),
     .rst_n(rst_n),
     .start_i(start_i),
+    .input_window_valid_i(input_window_valid_i),
+    .datapath_result_valid_i(datapath_result_valid_i),
+    .datapath_result_addr_i(datapath_result_addr_i),
     .input_addr_o(input_base_addr_o),
     .weight_addr_o(weight_base_addr_o),
     .bias_addr_o(bias_addr_o),
@@ -71,7 +80,9 @@ single_conv_fsm #(
     .done_o(done_o),
     .output_we_o(fsm_output_we_w),
     .mac_en_o(fsm_mac_en_w),
+    .mac_last_o(fsm_mac_last_w),
     .acc_load_bias_o(fsm_acc_load_bias_w),
+    .input_window_req_o(input_window_req_o),
     .oc_counter_o(),
     .oh_counter_o(),
     .ow_counter_o(),
@@ -82,11 +93,13 @@ always @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
         output_we_o     <= 1'b0;
         mac_en_o        <= 1'b0;
+        mac_last_o      <= 1'b0;
         acc_load_bias_o <= 1'b0;
     end
     else begin
         output_we_o     <= fsm_output_we_w;
         mac_en_o        <= fsm_mac_en_w;
+        mac_last_o      <= fsm_mac_last_w;
         acc_load_bias_o <= fsm_acc_load_bias_w;
     end
 end

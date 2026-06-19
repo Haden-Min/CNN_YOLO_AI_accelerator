@@ -3,7 +3,10 @@ rtl/pipeline_conv/mlt.v
 rtl/pipeline_conv/at.v
 rtl/pipeline_conv/mlt9_at.v
 rtl/pipeline_conv/acc.v
+rtl/pipeline_conv/activation.v
 rtl/pipeline_conv/conv_control_unit.v
+rtl/pipeline_conv/conv_input_line_buffer.v
+rtl/pipeline_conv/conv_window_buffer.v
 rtl/pipeline_conv/conv_input_mem.v
 rtl/pipeline_conv/conv_weight_mem.v
 rtl/pipeline_conv/conv_bias_mem.v
