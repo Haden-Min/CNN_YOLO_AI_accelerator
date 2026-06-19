@@ -77,6 +77,9 @@ module single_conv_fsm #(
     input   wire        clk_i           ,
     input   wire        rst_n           ,
     input   wire        start_i         ,
+    input   wire        input_window_valid_i,
+    input   wire        datapath_result_valid_i,
+    input   wire [OUT_ADDR_WIDTH-1:0] datapath_result_addr_i,
 
     // output addr
     output  reg [INPUT_ADDR_WIDTH-1:0]      input_addr_o    ,
@@ -89,7 +92,9 @@ module single_conv_fsm #(
     output  reg         done_o          ,   // High when the convolution sequence is complete
     output  reg         output_we_o     ,   // High for one cycle when writing an output element
     output  reg         mac_en_o        ,   // Enables one MAC operation in the datapath
+    output  reg         mac_last_o      ,   // Marks the final MAC for the current output element
     output  reg         acc_load_bias_o ,   // Requests bias load into the accumulator
+    output  wire        input_window_req_o,
 
     output  wire [31:0] oc_counter_o    ,
     output  wire [31:0] oh_counter_o    ,
@@ -147,17 +152,22 @@ module single_conv_fsm #(
     assign  iw_w    = ow_counter_r * STRIDE + kw_counter_r - PADDING    ;
 
     // FSM State
-    // IDLE -> LOAD_BIAS_ADDR -> LOAD_BIAS -> MAC_ADDR -> MAC_EXEC -> WRITE_OUT -> NEXT_OUT -> DONE
-    reg [2:0] present_state, next_state;
+    // IDLE -> LOAD_BIAS_ADDR -> LOAD_BIAS -> MAC_ADDR -> WAIT_WINDOW
+    //      -> MAC_EXEC -> NEXT_OUT ...
+    //      -> WRITE_OUT waits only for the final in-flight datapath result.
+    reg [3:0] present_state, next_state;
 
-    localparam  IDLE            = 3'b000    ,   // Wait for the start signal
-                LOAD_BIAS_ADDR  = 3'b001    ,   // Provide the bias address for the current output channel
-                LOAD_BIAS       = 3'b011    ,   // Load bias into the accumulator for a new output element
-                MAC_ADDR        = 3'b010    ,   // Provide input and weight addresses
-                MAC_EXEC        = 3'b110    ,   // Execute one MAC operation
-                WRITE_OUT       = 3'b111    ,   // Write the current output element
-                NEXT_OUT        = 3'b101    ,   // Move to the next output element
-                DONE            = 3'b100    ;   // Signal completion
+    localparam  IDLE            = 4'b0000   ,   // Wait for the start signal
+                LOAD_BIAS_ADDR  = 4'b0001   ,   // Provide the bias address for the current output channel
+                LOAD_BIAS       = 4'b0011   ,   // Load bias into the accumulator for a new output element
+                MAC_ADDR        = 4'b0010   ,   // Provide input and weight addresses
+                WAIT_WINDOW     = 4'b0110   ,   // Wait until line/window buffer can serve the requested window
+                MAC_EXEC        = 4'b1110   ,   // Execute one MAC operation
+                WRITE_OUT       = 4'b1111   ,   // Drain the final in-flight output result
+                NEXT_OUT        = 4'b0101   ,   // Move to the next output element
+                DONE            = 4'b0100   ;   // Signal completion
+
+    assign input_window_req_o = (present_state == WAIT_WINDOW);
 
     // fsm phase 1: next state -> present state control
     always @(posedge clk_i) begin
@@ -190,12 +200,26 @@ module single_conv_fsm #(
             end
 
             MAC_ADDR: begin
-                next_state = MAC_EXEC           ;
+                next_state = WAIT_WINDOW        ;
+            end
+
+            WAIT_WINDOW: begin
+                if (input_window_valid_i) begin
+                    next_state = MAC_EXEC       ;
+                end
+                else begin
+                    next_state = WAIT_WINDOW    ;
+                end
             end
 
             MAC_EXEC: begin
                 if (last_mac_op_w) begin
-                    next_state = WRITE_OUT      ;
+                    if (last_output_op_w) begin
+                        next_state = WRITE_OUT  ;
+                    end
+                    else begin
+                        next_state = NEXT_OUT   ;
+                    end
                 end
                 else begin
                     next_state = MAC_ADDR       ;
@@ -203,7 +227,13 @@ module single_conv_fsm #(
             end
 
             WRITE_OUT: begin
-                next_state = NEXT_OUT           ;
+                if (datapath_result_valid_i &&
+                    (datapath_result_addr_i == output_addr_o)) begin
+                    next_state = DONE           ;
+                end
+                else begin
+                    next_state = WRITE_OUT      ;
+                end
             end
 
             NEXT_OUT: begin
@@ -237,6 +267,7 @@ module single_conv_fsm #(
             done_o              <= 1'b0                         ;
             output_we_o         <= 1'b0                         ;
             mac_en_o            <= 1'b0                         ;
+            mac_last_o           <= 1'b0                         ;
             acc_load_bias_o     <= 1'b0                         ;
 
             oc_counter_r        <= {OC_WIDTH{1'b0}}             ;
@@ -252,6 +283,8 @@ module single_conv_fsm #(
             output_addr_o       <= {OUT_ADDR_WIDTH{1'b0}}       ;
         end
         else begin
+            mac_last_o <= 1'b0;
+
             case (present_state)
                 IDLE: begin
                     busy_o              <= 1'b0     ;
@@ -278,6 +311,9 @@ module single_conv_fsm #(
                     acc_load_bias_o     <= 1'b0                 ;
 
                     bias_addr_o         <= oc_counter_r         ;
+                    output_addr_o       <= oc_counter_r * OUT_H * OUT_W
+                                        + oh_counter_r * OUT_W
+                                        + ow_counter_r          ;
 
                     // initialization for 2nd ~ operation
                     ic_counter_r        <= {IC_WIDTH{1'b0}}     ;
@@ -320,11 +356,20 @@ module single_conv_fsm #(
                     end
                 end
 
+                WAIT_WINDOW: begin
+                    busy_o              <= 1'b1     ;
+                    done_o              <= 1'b0     ;
+                    output_we_o         <= 1'b0     ;
+                    mac_en_o            <= 1'b0     ;
+                    acc_load_bias_o     <= 1'b0     ;
+                end
+
                 MAC_EXEC: begin
                     busy_o              <= 1'b1     ;
                     done_o              <= 1'b0     ;
                     output_we_o         <= 1'b0     ;
                     mac_en_o            <= 1'b1     ;   // toggle
+                    mac_last_o          <= last_mac_op_w;
                     acc_load_bias_o     <= 1'b0     ;
 
                     if (!last_mac_op_w) begin
@@ -358,7 +403,7 @@ module single_conv_fsm #(
                 WRITE_OUT: begin
                     busy_o              <= 1'b1     ;
                     done_o              <= 1'b0     ;
-                    output_we_o         <= 1'b1     ;   // toggle
+                    output_we_o         <= datapath_result_valid_i;
                     mac_en_o            <= 1'b0     ;   // toggle
                     acc_load_bias_o     <= 1'b0     ;
                 end

@@ -41,6 +41,7 @@ module conv_memory_unit #(
     input wire signed [ACC_WIDTH-1:0] bias_load_data_i,
 
     input wire [INPUT_ADDR_WIDTH-1:0] input_base_addr_i,
+    input wire input_window_req_i,
     input wire [WEIGHT_ADDR_WIDTH-1:0] weight_base_addr_i,
     input wire [BIAS_ADDR_WIDTH-1:0] bias_read_addr_i,
 
@@ -50,6 +51,7 @@ module conv_memory_unit #(
     input wire [OUTPUT_ADDR_WIDTH-1:0] output_read_addr_i,
 
     output wire signed [K_H*K_W*DATA_WIDTH-1:0] input_window_o,
+    output wire input_window_valid_o,
     output wire signed [K_H*K_W*DATA_WIDTH-1:0] weight_window_o,
     output wire signed [ACC_WIDTH-1:0] bias_data_o,
     output wire signed [ACC_WIDTH-1:0] output_read_data_o
@@ -62,6 +64,7 @@ conv_input_mem #(
     .IN_W(IN_W),
     .K_H(K_H),
     .K_W(K_W),
+    .STRIDE(STRIDE),
     .INPUT_SIZE(INPUT_SIZE),
     .INPUT_ADDR_WIDTH(INPUT_ADDR_WIDTH)
 ) u_input_mem (
@@ -71,7 +74,9 @@ conv_input_mem #(
     .write_addr_i(input_load_addr_i),
     .write_data_i(input_load_data_i),
     .window_base_addr_i(input_base_addr_i),
-    .window_o(input_window_o)
+    .window_req_i(input_window_req_i),
+    .window_o(input_window_o),
+    .window_valid_o(input_window_valid_o)
 );
 
 conv_weight_mem #(
