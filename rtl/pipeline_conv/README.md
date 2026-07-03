@@ -16,6 +16,9 @@ The design is split explicitly into:
 - `conv_datapath.v`: contains the hazard-safe MLT/AT/ACC_BANK/ATV pipeline and
   returns `result_valid/result_addr/result_o` when an output is ready
 - `top_single_conv_pipeline.v`: connects control, memory, and datapath
+- `top_single_conv_pipeline_axi.v`: wraps `top_single_conv_pipeline` with
+  AXI-Lite control/status plus AXI-Stream input/output ports for the PYNQ DMA
+  integration path
 
 The current datapath maps each issued output to one of 9 accumulator banks with
 `output_addr % 9`. Inside each output, the 3x3 kernel multiplies run in
@@ -48,6 +51,25 @@ This proves the line-buffered 3x3 flow for the current `IC=1`, `OC=1` fixture.
 For multi-output-channel YOLO layers, the FSM loop order or input backpressure
 needs to be extended so the same input window can be reused across all output
 channels before the line buffer overwrites old rows.
+
+The AXI wrapper keeps the same row-burst behavior but turns it into a DMA-style
+stream contract:
+
+| AXI-Lite offset | Meaning |
+| --- | --- |
+| `0x00` | control: bit 0 starts one transaction, bit 1 clears done, bit 2 soft-resets wrapper state |
+| `0x04` | status bits plus wrapper state |
+| `0x08` | accepted input stream words |
+| `0x0c` | produced output stream words |
+| `0x10` | expected input stream words |
+| `0x14` | expected output stream words |
+| `0x18` | error flags |
+
+For the current 416x416 fixture, one MM2S input payload contains 173066 32-bit
+stream words: 173056 INT8 input words in row order, 9 INT8 weight words, and 1
+INT32 bias word. INT8 values are carried in `s_axis_tdata[7:0]`; bias uses all
+32 bits. The S2MM output stream returns 171396 INT32 accumulator words and
+asserts `m_axis_tlast` on the final word.
 
 Current input-window reuse behavior:
 

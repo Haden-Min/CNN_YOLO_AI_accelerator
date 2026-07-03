@@ -110,7 +110,7 @@ module tb_single_conv_pipeline_v2_416;
     task open_input_fixture;
         output integer file_desc;
         begin
-            file_desc = $fopen("D:/a.Projects/cnn_accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/input_int8.hex", "r");
+            file_desc = $fopen("C:/Users/hanyu/Documents/CNN Accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/input_int8.hex", "r");
             if (file_desc == 0) file_desc = $fopen("sw/fixture/single_conv_416/input_int8.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../sw/fixture/single_conv_416/input_int8.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../sw/fixture/single_conv_416/input_int8.hex", "r");
@@ -119,14 +119,14 @@ module tb_single_conv_pipeline_v2_416;
             if (file_desc == 0) file_desc = $fopen("../../../../../sw/fixture/single_conv_416/input_int8.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../../../../CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/input_int8.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../../../../../CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/input_int8.hex", "r");
-            if (file_desc == 0) file_desc = $fopen("C:/Users/hanyu/Documents/CNN Accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/input_int8.hex", "r");
+            if (file_desc == 0) file_desc = $fopen("D:/a.Projects/cnn_accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/input_int8.hex", "r");
         end
     endtask
 
     task open_weight_fixture;
         output integer file_desc;
         begin
-            file_desc = $fopen("D:/a.Projects/cnn_accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/weight_int8.hex", "r");
+            file_desc = $fopen("C:/Users/hanyu/Documents/CNN Accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/weight_int8.hex", "r");
             if (file_desc == 0) file_desc = $fopen("sw/fixture/single_conv_416/weight_int8.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../sw/fixture/single_conv_416/weight_int8.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../sw/fixture/single_conv_416/weight_int8.hex", "r");
@@ -135,14 +135,14 @@ module tb_single_conv_pipeline_v2_416;
             if (file_desc == 0) file_desc = $fopen("../../../../../sw/fixture/single_conv_416/weight_int8.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../../../../CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/weight_int8.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../../../../../CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/weight_int8.hex", "r");
-            if (file_desc == 0) file_desc = $fopen("C:/Users/hanyu/Documents/CNN Accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/weight_int8.hex", "r");
+            if (file_desc == 0) file_desc = $fopen("D:/a.Projects/cnn_accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/weight_int8.hex", "r");
         end
     endtask
 
     task open_bias_fixture;
         output integer file_desc;
         begin
-            file_desc = $fopen("D:/a.Projects/cnn_accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/bias_int32.hex", "r");
+            file_desc = $fopen("C:/Users/hanyu/Documents/CNN Accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/bias_int32.hex", "r");
             if (file_desc == 0) file_desc = $fopen("sw/fixture/single_conv_416/bias_int32.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../sw/fixture/single_conv_416/bias_int32.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../sw/fixture/single_conv_416/bias_int32.hex", "r");
@@ -151,14 +151,14 @@ module tb_single_conv_pipeline_v2_416;
             if (file_desc == 0) file_desc = $fopen("../../../../../sw/fixture/single_conv_416/bias_int32.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../../../../CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/bias_int32.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../../../../../CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/bias_int32.hex", "r");
-            if (file_desc == 0) file_desc = $fopen("C:/Users/hanyu/Documents/CNN Accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/bias_int32.hex", "r");
+            if (file_desc == 0) file_desc = $fopen("D:/a.Projects/cnn_accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/bias_int32.hex", "r");
         end
     endtask
 
     task open_expected_fixture;
         output integer file_desc;
         begin
-            file_desc = $fopen("D:/a.Projects/cnn_accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/expected_acc_int32.hex", "r");
+            file_desc = $fopen("C:/Users/hanyu/Documents/CNN Accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/expected_acc_int32.hex", "r");
             if (file_desc == 0) file_desc = $fopen("sw/fixture/single_conv_416/expected_acc_int32.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../sw/fixture/single_conv_416/expected_acc_int32.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../sw/fixture/single_conv_416/expected_acc_int32.hex", "r");
@@ -167,7 +167,7 @@ module tb_single_conv_pipeline_v2_416;
             if (file_desc == 0) file_desc = $fopen("../../../../../sw/fixture/single_conv_416/expected_acc_int32.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../../../../CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/expected_acc_int32.hex", "r");
             if (file_desc == 0) file_desc = $fopen("../../../../../../CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/expected_acc_int32.hex", "r");
-            if (file_desc == 0) file_desc = $fopen("C:/Users/hanyu/Documents/CNN Accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/expected_acc_int32.hex", "r");
+            if (file_desc == 0) file_desc = $fopen("D:/a.Projects/cnn_accelerator/CNN_YOLO_AI_accelerator/sw/fixture/single_conv_416/expected_acc_int32.hex", "r");
         end
     endtask
 
@@ -387,6 +387,12 @@ module tb_single_conv_pipeline_v2_416;
                     $display("[FAIL] readback mismatch addr=%0d got=%0d expected=%0d",
                              i, output_read_data_o, expected_mem[i]);
                     readback_mismatch_count = readback_mismatch_count + 1;
+                end
+                if ((i < 5) ||
+                    (i >= (OUTPUT_SIZE / 2) && i < (OUTPUT_SIZE / 2 + 5)) ||
+                    (i >= (OUTPUT_SIZE - 5))) begin
+                    $display("[SAMPLE] readback addr=%0d got=%0d expected=%0d",
+                             i, output_read_data_o, expected_mem[i]);
                 end
 
                 if (((i + 1) % PROGRESS_STEP) == 0) begin

@@ -7,6 +7,8 @@ Use these filelists as the source of truth for the current Vivado project:
 
 - `rtl/filelists/phase2_pipeline_rtl.f`: synthesizable RTL only
 - `rtl/filelists/phase2_pipeline_tb.f`: RTL plus the PS/PL-style testbench
+- `rtl/filelists/phase2_pipeline_axi_tb_v2_416.f`: AXI-Lite/AXI-Stream
+  wrapper plus the 416x416 DMA-style testbench
 
 Current active hierarchy:
 
@@ -27,6 +29,26 @@ top_single_conv_pipeline
     gen_acc_bank[0..8].acc
     activation
 ```
+
+The PYNQ-facing wrapper is `top_single_conv_pipeline_axi`. It keeps the active
+line-buffered convolution core intact and adds:
+
+- AXI-Lite control/status registers
+- AXI-Stream input for one DMA MM2S payload
+- AXI-Stream output for one DMA S2MM output buffer
+
+The input stream order for the current 416x416 fixture is:
+
+```text
+initial input rows 0..2
+weight words
+bias words
+remaining input rows 3..415
+```
+
+The wrapper holds `s_axis_tready` low until the line-buffered core needs the
+next input row, so a normal PYNQ DMA send buffer can contain the whole payload
+while the PL side backpressures row delivery.
 
 Fixed legacy/reference files are not part of new development. Do not add new
 modules there, and do not add these files to the Phase 2 Vivado project unless
