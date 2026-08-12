@@ -55,8 +55,9 @@ DDR input feature map
 -> line/window buffer
 -> INT8 MAC array
 -> INT32 accumulator
--> bias / requantization
--> activation
+-> bias / activation
+-> requantization
+-> optional MaxPool
 -> DDR output feature map
 ```
 

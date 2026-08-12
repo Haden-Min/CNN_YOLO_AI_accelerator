@@ -75,6 +75,7 @@ module tb_single_conv_pipeline_axi_v2_416;
     integer timeout_done;
     integer recv_done;
     integer send_done;
+    integer first_output_before_input_done;
     integer last_seen_count;
     integer status_value;
     integer stream_in_value;
@@ -400,15 +401,20 @@ module tb_single_conv_pipeline_axi_v2_416;
             mismatch_count = 0;
             last_seen_count = 0;
             recv_wait_cycles = 0;
-            m_axis_tready = 1'b1;
+            m_axis_tready = 1'b0;
             while (recv_count < OUTPUT_SIZE) begin
-                @(posedge clk);
+                @(negedge clk);
+                m_axis_tready = ((recv_wait_cycles % 200) >= 120);
                 recv_wait_cycles = recv_wait_cycles + 1;
+                @(posedge clk);
                 if (recv_wait_cycles > TIMEOUT_CYCLES) begin
                     $display("FAIL: timeout waiting for AXI output, recv_count=%0d", recv_count);
                     $finish;
                 end
                 if (m_axis_tvalid && m_axis_tready) begin
+                    if ((recv_count == 0) && !send_done) begin
+                        first_output_before_input_done = 1;
+                    end
                     got_value = m_axis_tdata;
                     if (got_value !== expected_mem[recv_count]) begin
                         if (mismatch_count < 20) begin
@@ -471,6 +477,7 @@ module tb_single_conv_pipeline_axi_v2_416;
         timeout_done = 0;
         recv_done = 0;
         send_done = 0;
+        first_output_before_input_done = 0;
 
         repeat (5) @(posedge clk);
         rst_n = 1'b1;
@@ -479,8 +486,10 @@ module tb_single_conv_pipeline_axi_v2_416;
         $display("[AXI-LITE] start wrapper");
         axi_write(6'h00, 32'h00000001);
 
-        axis_send_payload();
-        axis_recv_outputs();
+        fork
+            axis_send_payload();
+            axis_recv_outputs();
+        join
 
         axi_read(6'h04, status_value);
         axi_read(6'h08, stream_in_value);
@@ -489,6 +498,10 @@ module tb_single_conv_pipeline_axi_v2_416;
 
         if (!send_done) begin
             $display("FAIL: input DMA stream did not finish");
+            $finish;
+        end
+        if (!first_output_before_input_done) begin
+            $display("FAIL: no output was streamed before the MM2S input packet completed");
             $finish;
         end
         if (stream_in_value != INPUT_SIZE + WEIGHT_SIZE + BIAS_SIZE) begin

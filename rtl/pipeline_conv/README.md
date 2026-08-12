@@ -2,6 +2,32 @@
 
 This is the active Phase 2 single-convolution PL path.
 
+## 28x28 board-bring-up tile path
+
+The current deployment candidate is a separate fixed tile architecture:
+
+- `tile_input_loader.v`: accepts exactly one 28x28 INT8 tile and writes three
+  circular row banks
+- `tile_line_buffer_3row.v`: stores only 3x28 pixels
+- `tile_window_generator_3x3.v`: emits 26 windows per output row while obeying
+  ready/valid backpressure
+- `tile_conv_controller.v`: alternates initial-three-row load, output-row
+  compute, and one-next-row load
+- `top_single_conv_tile.v`: reuses `conv_weight_mem`, `conv_bias_mem`, and
+  `conv_datapath` for one IC=1, OC=1 valid 3x3 convolution
+- `top_single_conv_tile_axi.v`: uses distinct 10-word parameter and 784-word
+  tile packets, then returns 676 INT32 results through `axis_output_fifo`
+
+The full interface, register map, verification results, and limitations are in
+[`../../docs/28x28-tile-conv-design.md`](../../docs/28x28-tile-conv-design.md).
+
+The fixed 16x16 alternative uses `top_single_conv_tile_16.v` and
+`top_single_conv_tile_axi_16.v`. It accepts 256 pixels and returns 196 results.
+See
+[`../../docs/tile-size-comparison-28-vs-16.md`](../../docs/tile-size-comparison-28-vs-16.md)
+for the measured comparison. The generic lower modules are shared, while the
+16x16 files provide an independent fixed synthesis/IP entry point.
+
 The design is split explicitly into:
 
 - `conv_control_unit.v`: wraps `single_conv_fsm`, including the `WAIT_WINDOW`
@@ -14,7 +40,10 @@ The design is split explicitly into:
   shifts the previous window by `STRIDE` columns and appends only the new
   right-side columns while staying on the same input row
 - `conv_datapath.v`: contains the hazard-safe MLT/AT/ACC_BANK/ATV pipeline and
-  returns `result_valid/result_addr/result_o` when an output is ready
+  returns a backpressure-safe `result_valid/result_ready/result_o` transaction
+  when an output is ready
+- `axis_output_fifo.v`: decouples completed core results from DMA
+  `M_AXIS_TREADY` backpressure
 - `top_single_conv_pipeline.v`: connects control, memory, and datapath
 - `top_single_conv_pipeline_axi.v`: wraps `top_single_conv_pipeline` with
   AXI-Lite control/status plus AXI-Stream input/output ports for the PYNQ DMA
@@ -34,7 +63,8 @@ Pipeline hazard control:
   the pipeline
 - ACC_BANK holds independent partial sums in 9 `acc` instances, so a later
   output's bias load does not overwrite an earlier output still in flight
-- OPT writes only when `result_valid` is asserted with the matching result tag
+- OPT transfers only on `result_valid && result_ready`; result data and address
+  remain stable while the downstream FIFO is full
 - the FSM no longer waits for every output result; it issues the next output
   after `mac_last` and uses `WRITE_OUT` only to drain the final in-flight result
 - ATV is instantiated as an optional activation stage, but defaults to bypass
@@ -45,7 +75,7 @@ For the Phase 2 testbench, PS/DMA behavior is modeled as row bursts:
 - preload the first 3 input rows into the line buffer
 - start the accelerator
 - stream the next input row after each output row is written
-- read the final outputs back from `conv_output_mem`
+- compare the result transactions emitted by the core
 
 This proves the line-buffered 3x3 flow for the current `IC=1`, `OC=1` fixture.
 For multi-output-channel YOLO layers, the FSM loop order or input backpressure
@@ -54,6 +84,15 @@ channels before the line buffer overwrites old rows.
 
 The AXI wrapper keeps the same row-burst behavior but turns it into a DMA-style
 stream contract:
+
+- every completed INT32 result is pushed immediately into a 16-word output
+  FIFO; the AXI wrapper does not instantiate the full-frame output BRAM
+- `M_AXIS_TVALID`, `TDATA`, and `TLAST` remain stable while
+  `M_AXIS_TREADY=0`
+- the core stalls safely if both the FIFO and its one-word result holding
+  register are occupied
+- transaction done is asserted only after the final `M_AXIS` word and `TLAST`
+  are accepted
 
 | AXI-Lite offset | Meaning |
 | --- | --- |
@@ -70,6 +109,15 @@ stream words: 173056 INT8 input words in row order, 9 INT8 weight words, and 1
 INT32 bias word. INT8 values are carried in `s_axis_tdata[7:0]`; bias uses all
 32 bits. The S2MM output stream returns 171396 INT32 accumulator words and
 asserts `m_axis_tlast` on the final word.
+
+The 416x416 AXI regression intentionally drives 120 cycles of output
+backpressure in every 200-cycle interval. It checks that output begins before
+the input packet has finished, then compares all 171396 words and the final
+`TLAST`. Vivado Simulator 2024.1 reports:
+
+```text
+PASS: tb_single_conv_pipeline_axi_v2_416 outputs=171396 stream_in=173066 status=0x00008011
+```
 
 Current input-window reuse behavior:
 

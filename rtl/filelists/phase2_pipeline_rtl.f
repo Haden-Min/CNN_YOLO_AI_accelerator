@@ -14,4 +14,5 @@ rtl/pipeline_conv/conv_output_mem.v
 rtl/pipeline_conv/conv_memory_unit.v
 rtl/pipeline_conv/conv_datapath.v
 rtl/pipeline_conv/top_single_conv_pipeline.v
+rtl/pipeline_conv/axis_output_fifo.v
 rtl/pipeline_conv/top_single_conv_pipeline_axi.v

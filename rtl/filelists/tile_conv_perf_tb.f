@@ -1,0 +1,14 @@
+rtl/pipeline_conv/mlt.v
+rtl/pipeline_conv/at.v
+rtl/pipeline_conv/acc.v
+rtl/pipeline_conv/activation.v
+rtl/pipeline_conv/conv_datapath.v
+rtl/pipeline_conv/conv_weight_mem.v
+rtl/pipeline_conv/conv_bias_mem.v
+rtl/pipeline_conv/tile_input_loader.v
+rtl/pipeline_conv/tile_line_buffer_3row.v
+rtl/pipeline_conv/tile_window_generator_3x3.v
+rtl/pipeline_conv/tile_conv_controller.v
+rtl/pipeline_conv/top_single_conv_tile.v
+rtl/tb/tb_single_conv_tile.v
+rtl/tb/tb_tile_conv_perf_variants.v
