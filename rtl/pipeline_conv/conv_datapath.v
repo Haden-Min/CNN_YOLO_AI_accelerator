@@ -18,6 +18,7 @@ module conv_datapath #(
     input wire mac_en_i,
     input wire mac_last_i,
     input wire [OUTPUT_ADDR_WIDTH-1:0] output_addr_i,
+    input wire result_ready_i,
 
     input wire signed [K_H*K_W*DATA_WIDTH-1:0] input_window_i,
     input wire signed [K_H*K_W*DATA_WIDTH-1:0] weight_window_i,
@@ -172,11 +173,13 @@ always @(posedge clk or negedge rst_n) begin
             at_sum_r <= at_sum_w;
         end
 
-        result_valid_r <= at_valid_r && at_last_r;
-        result_addr_r  <= at_addr_r;
+        if (!result_valid_r || result_ready_i) begin
+            result_valid_r <= at_valid_r && at_last_r;
 
-        if (at_valid_r && at_last_r) begin
-            result_data_r <= atv_data_w;
+            if (at_valid_r && at_last_r) begin
+                result_addr_r <= at_addr_r;
+                result_data_r <= atv_data_w;
+            end
         end
     end
 end

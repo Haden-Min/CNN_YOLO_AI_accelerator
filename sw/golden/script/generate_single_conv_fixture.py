@@ -86,25 +86,112 @@ WEIGHT_INT8 = [
 BIAS_INT32 = [7]
 
 
+TILE_28_CONFIG = {
+    "fixture_id": "single_conv_tile_28",
+    "layout": "CHW",
+    "input_shape": [1, 28, 28],
+    "output_shape": [1, 26, 26],
+    "kernel_shape": [1, 1, 3, 3],
+    "stride": 1,
+    "padding": 0,
+    "input_dtype": "int8",
+    "weight_dtype": "int8",
+    "bias_dtype": "int32",
+    "acc_dtype": "int32",
+    "output_dtype": "int8",
+    "input_zero_point": 0,
+    "weight_zero_point": 0,
+    "output_zero_point": 0,
+    "compare_target_tile": "expected_acc_int32",
+    "endianness": "little",
+}
+
+TILE_28_INPUT_INT8 = [
+    ((row * 17 + col * 5 + 3) % 31) - 15
+    for row in range(28)
+    for col in range(28)
+]
+
+TILE_28_WEIGHT_INT8 = [-2, 1, 3, 0, -1, 2, 1, -3, 2]
+TILE_28_BIAS_INT32 = [17]
+
+
+TILE_16_CONFIG = {
+    "fixture_id": "single_conv_tile_16",
+    "layout": "CHW",
+    "input_shape": [1, 16, 16],
+    "output_shape": [1, 14, 14],
+    "kernel_shape": [1, 1, 3, 3],
+    "stride": 1,
+    "padding": 0,
+    "input_dtype": "int8",
+    "weight_dtype": "int8",
+    "bias_dtype": "int32",
+    "acc_dtype": "int32",
+    "output_dtype": "int8",
+    "input_zero_point": 0,
+    "weight_zero_point": 0,
+    "output_zero_point": 0,
+    "compare_target_tile": "expected_acc_int32",
+    "endianness": "little",
+}
+
+TILE_16_INPUT_INT8 = [
+    ((row * 17 + col * 5 + 3) % 31) - 15
+    for row in range(16)
+    for col in range(16)
+]
+
+TILE_16_WEIGHT_INT8 = TILE_28_WEIGHT_INT8
+TILE_16_BIAS_INT32 = TILE_28_BIAS_INT32
+
+
 def write_config(path: Path, config: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(config, indent=2) + "\n", encoding="ascii")
 
 
 def generate_fixture(fixture_id: str, fixtures_root: Path) -> Path:
-    if fixture_id != DEFAULT_CONFIG["fixture_id"]:
-        raise ValueError("Phase 1 currently supports only single_conv_001")
+    fixtures = {
+        DEFAULT_CONFIG["fixture_id"]: (
+            DEFAULT_CONFIG,
+            INPUT_INT8,
+            WEIGHT_INT8,
+            BIAS_INT32,
+        ),
+        TILE_28_CONFIG["fixture_id"]: (
+            TILE_28_CONFIG,
+            TILE_28_INPUT_INT8,
+            TILE_28_WEIGHT_INT8,
+            TILE_28_BIAS_INT32,
+        ),
+        TILE_16_CONFIG["fixture_id"]: (
+            TILE_16_CONFIG,
+            TILE_16_INPUT_INT8,
+            TILE_16_WEIGHT_INT8,
+            TILE_16_BIAS_INT32,
+        ),
+    }
+    if fixture_id not in fixtures:
+        raise ValueError(f"Unsupported fixture: {fixture_id}")
+
+    fixture_config, input_values, weight_values, bias_values = fixtures[fixture_id]
 
     fixture_dir = fixtures_root / fixture_id
     fixture_dir.mkdir(parents=True, exist_ok=True)
 
-    config = dict(DEFAULT_CONFIG)
+    config = dict(fixture_config)
     write_config(fixture_dir / "layer_config.json", config)
-    write_values(fixture_dir / "input_int8.hex", INPUT_INT8)
-    write_values(fixture_dir / "weight_int8.hex", WEIGHT_INT8)
-    write_values(fixture_dir / "bias_int32.hex", BIAS_INT32)
+    write_values(fixture_dir / "input_int8.hex", input_values)
+    write_values(fixture_dir / "weight_int8.hex", weight_values)
+    write_values(fixture_dir / "bias_int32.hex", bias_values)
 
-    acc_values = compute_accumulator(config, INPUT_INT8, WEIGHT_INT8, BIAS_INT32)
+    acc_values = compute_accumulator(
+        config,
+        input_values,
+        weight_values,
+        bias_values,
+    )
     write_values(fixture_dir / "expected_acc_int32.hex", acc_values)
 
     return fixture_dir

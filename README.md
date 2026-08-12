@@ -97,6 +97,25 @@ flowchart LR
 - Large pretrained weights and generated binaries should not be committed.
 - Legacy files are kept for reference, but new RTL should be written in `rtl/`.
 
+## Board Integration
+
+The reproducible Vivado/PYNQ handoff procedure is documented in
+[`docs/pynq-z2-block-design-handoff-guide.md`](docs/pynq-z2-block-design-handoff-guide.md).
+The new board-bring-up candidate is the fixed 28x28 tile path documented in
+[`docs/28x28-tile-conv-design.md`](docs/28x28-tile-conv-design.md). It keeps
+only three 28-pixel rows in PL, streams completed INT32 outputs immediately to
+the DMA FIFO, and uses separate parameter-load and tile-run packets. Exact RTL
+and AXI simulations pass for 784 inputs and 676 outputs. XC7Z020-1 out-of-context
+place-and-route also meets 100 MHz with positive setup slack. A full block-design
+timing run is still required after connecting the PS, DMA, and interconnect.
+
+A separately synthesizable 16x16 alternative is also available. The measured
+timing, utilization, latency, halo overhead, and 416x416 tiling comparison are
+documented in
+[`docs/tile-size-comparison-28-vs-16.md`](docs/tile-size-comparison-28-vs-16.md).
+The 28x28 path remains the default because it has better whole-feature-map
+efficiency; the 16x16 path is retained for low-latency and small-buffer tests.
+
 ## References
 
 - [YOLOv3 paper](https://arxiv.org/abs/1804.02767)

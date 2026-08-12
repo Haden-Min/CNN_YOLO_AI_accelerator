@@ -14,6 +14,7 @@ module conv_memory_unit #(
     parameter PADDING = 0,
     parameter OUT_H   = 3,
     parameter OUT_W   = 3,
+    parameter ENABLE_OUTPUT_BUFFER = 1,
 
     parameter INPUT_SIZE  = IC * IN_H * IN_W,
     parameter WEIGHT_SIZE = OC * IC * K_H * K_W,
@@ -112,21 +113,28 @@ conv_bias_mem #(
     .read_data_o(bias_data_o)
 );
 
-conv_output_mem #(
-    .ACC_WIDTH(ACC_WIDTH),
-    .OC(OC),
-    .OUT_H(OUT_H),
-    .OUT_W(OUT_W),
-    .OUTPUT_SIZE(OUTPUT_SIZE),
-    .OUTPUT_ADDR_WIDTH(OUTPUT_ADDR_WIDTH)
-) u_output_mem (
-    .clk(clk),
-    .rst_n(rst_n),
-    .write_en_i(output_write_en_i),
-    .write_addr_i(output_write_addr_i),
-    .write_data_i(output_write_data_i),
-    .read_addr_i(output_read_addr_i),
-    .read_data_o(output_read_data_o)
-);
+generate
+    if (ENABLE_OUTPUT_BUFFER) begin : gen_output_buffer
+        conv_output_mem #(
+            .ACC_WIDTH(ACC_WIDTH),
+            .OC(OC),
+            .OUT_H(OUT_H),
+            .OUT_W(OUT_W),
+            .OUTPUT_SIZE(OUTPUT_SIZE),
+            .OUTPUT_ADDR_WIDTH(OUTPUT_ADDR_WIDTH)
+        ) u_output_mem (
+            .clk(clk),
+            .rst_n(rst_n),
+            .write_en_i(output_write_en_i),
+            .write_addr_i(output_write_addr_i),
+            .write_data_i(output_write_data_i),
+            .read_addr_i(output_read_addr_i),
+            .read_data_o(output_read_data_o)
+        );
+    end
+    else begin : gen_no_output_buffer
+        assign output_read_data_o = {ACC_WIDTH{1'b0}};
+    end
+endgenerate
 
 endmodule

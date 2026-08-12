@@ -83,6 +83,7 @@ module tb_single_conv_pipeline;
         .clk(clk),
         .rst_n(rst_n),
         .start_i(start_i),
+        .output_ready_i(1'b1),
         .input_load_en_i(input_load_en_i),
         .input_load_addr_i(input_load_addr_i),
         .input_stream_data_i(input_stream_data_i),

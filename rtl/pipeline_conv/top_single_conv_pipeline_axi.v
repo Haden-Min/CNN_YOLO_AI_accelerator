@@ -28,7 +28,8 @@ module top_single_conv_pipeline_axi #(
     parameter OUTPUT_ADDR_WIDTH = (OUTPUT_SIZE <= 1) ? 1 : $clog2(OUTPUT_SIZE),
 
     parameter AXI_ADDR_WIDTH = 6,
-    parameter AXI_DATA_WIDTH = 32
+    parameter AXI_DATA_WIDTH = 32,
+    parameter OUTPUT_FIFO_DEPTH = 16
 )(
     input wire aclk,
     input wire aresetn,
@@ -77,11 +78,8 @@ localparam ST_LOAD_BIAS    = 4'd3;
 localparam ST_START        = 4'd4;
 localparam ST_RUN          = 4'd5;
 localparam ST_LOAD_ROW     = 4'd6;
-localparam ST_OUT_PREP     = 4'd7;
-localparam ST_OUT_WAIT     = 4'd8;
-localparam ST_OUT_CAPTURE  = 4'd9;
-localparam ST_OUT_SEND     = 4'd10;
-localparam ST_DONE         = 4'd11;
+localparam ST_DRAIN        = 4'd7;
+localparam ST_DONE         = 4'd8;
 
 localparam REG_CTRL        = 4'd0;
 localparam REG_STATUS      = 4'd1;
@@ -116,19 +114,18 @@ reg signed [DATA_WIDTH-1:0] weight_load_data_r;
 reg bias_load_en_r;
 reg [BIAS_ADDR_WIDTH-1:0] bias_load_addr_r;
 reg signed [ACC_WIDTH-1:0] bias_load_data_r;
-reg [OUTPUT_ADDR_WIDTH-1:0] output_read_addr_r;
-
 wire [BIAS_ADDR_WIDTH-1:0] core_bias_addr_w;
 wire [OUTPUT_ADDR_WIDTH-1:0] core_output_addr_w;
 wire core_output_we_w;
+wire core_output_ready_w;
 wire core_busy_w;
 wire core_done_w;
 wire signed [ACC_WIDTH-1:0] core_output_data_w;
-wire signed [ACC_WIDTH-1:0] core_output_read_data_w;
+wire core_output_fire_w;
 
-reg [AXI_DATA_WIDTH-1:0] m_axis_tdata_r;
-reg m_axis_tvalid_r;
-reg m_axis_tlast_r;
+localparam OUTPUT_FIFO_COUNT_WIDTH = (OUTPUT_FIFO_DEPTH <= 1) ? 1 : $clog2(OUTPUT_FIFO_DEPTH + 1);
+wire [OUTPUT_FIFO_COUNT_WIDTH-1:0] output_fifo_level_w;
+wire output_fifo_pop_w;
 
 wire write_ready_w;
 wire aw_fire_w;
@@ -180,7 +177,7 @@ assign row_base_addr_w = next_input_row_r * INPUT_ROW_WORDS;
 assign input_row_write_addr_w = row_base_addr_w + row_count_r;
 assign row_done_addr_w = (next_input_row_r - K_H) * OUT_W + (OUT_W - 1);
 assign row_done_match_w = (next_input_row_r < IN_H) &&
-                          core_output_we_w &&
+                          core_output_fire_w &&
                           (core_output_addr_w == row_done_addr_w[OUTPUT_ADDR_WIDTH-1:0]);
 
 assign idle_w = (state_r == ST_IDLE) || (state_r == ST_DONE);
@@ -188,10 +185,7 @@ assign loading_w = (state_r == ST_LOAD_INITIAL) ||
                    (state_r == ST_LOAD_WEIGHT)  ||
                    (state_r == ST_LOAD_BIAS);
 assign running_w = (state_r == ST_RUN) || (state_r == ST_LOAD_ROW);
-assign outputting_w = (state_r == ST_OUT_PREP) ||
-                      (state_r == ST_OUT_WAIT) ||
-                      (state_r == ST_OUT_CAPTURE) ||
-                      (state_r == ST_OUT_SEND);
+assign outputting_w = (output_fifo_level_w != 0) || (state_r == ST_DRAIN);
 assign status_w = {{(AXI_DATA_WIDTH-16){1'b0}},
                    state_r,
                    4'd0,
@@ -204,10 +198,27 @@ assign status_w = {{(AXI_DATA_WIDTH-16){1'b0}},
                    loading_w,
                    idle_w};
 
-assign m_axis_tdata = m_axis_tdata_r;
-assign m_axis_tvalid = m_axis_tvalid_r;
-assign m_axis_tlast = m_axis_tlast_r;
+assign core_output_fire_w = core_output_we_w && core_output_ready_w;
+assign output_fifo_pop_w = m_axis_tvalid && m_axis_tready;
 assign irq = done_sticky_r;
+
+axis_output_fifo #(
+    .DATA_WIDTH(AXI_DATA_WIDTH),
+    .DEPTH(OUTPUT_FIFO_DEPTH)
+) u_output_fifo (
+    .clk(aclk),
+    .rst_n(aresetn),
+    .clear_i(ctrl_soft_reset_w),
+    .s_data_i(core_output_data_w[AXI_DATA_WIDTH-1:0]),
+    .s_last_i(core_output_addr_w == (OUTPUT_SIZE - 1)),
+    .s_valid_i(core_output_we_w),
+    .s_ready_o(core_output_ready_w),
+    .m_data_o(m_axis_tdata),
+    .m_last_o(m_axis_tlast),
+    .m_valid_o(m_axis_tvalid),
+    .m_ready_i(m_axis_tready),
+    .level_o(output_fifo_level_w)
+);
 
 always @(posedge aclk or negedge aresetn) begin
     if (!aresetn) begin
@@ -244,11 +255,6 @@ always @(posedge aclk or negedge aresetn) begin
         bias_load_en_r <= 1'b0;
         bias_load_addr_r <= {BIAS_ADDR_WIDTH{1'b0}};
         bias_load_data_r <= {ACC_WIDTH{1'b0}};
-        output_read_addr_r <= {OUTPUT_ADDR_WIDTH{1'b0}};
-
-        m_axis_tdata_r <= {AXI_DATA_WIDTH{1'b0}};
-        m_axis_tvalid_r <= 1'b0;
-        m_axis_tlast_r <= 1'b0;
     end
     else begin
         s_axi_awready <= aw_fire_w;
@@ -280,7 +286,7 @@ always @(posedge aclk or negedge aresetn) begin
                 REG_CTRL:         s_axi_rdata <= {{(AXI_DATA_WIDTH-1){1'b0}}, (state_r != ST_IDLE)};
                 REG_STATUS:       s_axi_rdata <= status_w;
                 REG_STREAM_IN:    s_axi_rdata <= stream_in_count_r[AXI_DATA_WIDTH-1:0];
-                REG_STREAM_OUT:   s_axi_rdata <= done_sticky_r ? OUTPUT_SIZE : stream_out_count_r[AXI_DATA_WIDTH-1:0];
+                REG_STREAM_OUT:   s_axi_rdata <= stream_out_count_r[AXI_DATA_WIDTH-1:0];
                 REG_EXPECTED_IN:  s_axi_rdata <= EXPECTED_INPUT_WORDS;
                 REG_EXPECTED_OUT: s_axi_rdata <= OUTPUT_SIZE;
                 REG_ERROR:        s_axi_rdata <= error_flags_r[AXI_DATA_WIDTH-1:0];
@@ -304,8 +310,6 @@ always @(posedge aclk or negedge aresetn) begin
             stream_out_count_r <= 32'd0;
             error_flags_r <= 32'd0;
             done_sticky_r <= 1'b0;
-            m_axis_tvalid_r <= 1'b0;
-            m_axis_tlast_r <= 1'b0;
         end
         else begin
             if (axis_accept_w) begin
@@ -313,15 +317,13 @@ always @(posedge aclk or negedge aresetn) begin
                 if (s_axis_tlast && !axis_final_word_w) begin
                     error_flags_r[0] <= 1'b1;
                 end
-                if (axis_final_word_w && s_axis_tlast) begin
-                    error_flags_r[1] <= 1'b0;
+                if (axis_final_word_w) begin
+                    error_flags_r[1] <= !s_axis_tlast;
                 end
             end
 
             case (state_r)
                 ST_IDLE: begin
-                    m_axis_tvalid_r <= 1'b0;
-                    m_axis_tlast_r <= 1'b0;
                     if (ctrl_start_w) begin
                         state_r <= ST_LOAD_INITIAL;
                         load_count_r <= 32'd0;
@@ -390,9 +392,7 @@ always @(posedge aclk or negedge aresetn) begin
                         row_count_r <= 32'd0;
                     end
                     else if (core_done_w && (next_input_row_r >= IN_H)) begin
-                        state_r <= ST_OUT_PREP;
-                        stream_out_count_r <= 32'd0;
-                        output_read_addr_r <= {OUTPUT_ADDR_WIDTH{1'b0}};
+                        state_r <= ST_DRAIN;
                     end
                 end
 
@@ -412,36 +412,8 @@ always @(posedge aclk or negedge aresetn) begin
                     end
                 end
 
-                ST_OUT_PREP: begin
-                    output_read_addr_r <= stream_out_count_r[OUTPUT_ADDR_WIDTH-1:0];
-                    state_r <= ST_OUT_WAIT;
-                end
-
-                ST_OUT_WAIT: begin
-                    state_r <= ST_OUT_CAPTURE;
-                end
-
-                ST_OUT_CAPTURE: begin
-                    m_axis_tdata_r <= core_output_read_data_w[AXI_DATA_WIDTH-1:0];
-                    m_axis_tvalid_r <= 1'b1;
-                    m_axis_tlast_r <= (stream_out_count_r == (OUTPUT_SIZE - 1));
-                    state_r <= ST_OUT_SEND;
-                end
-
-                ST_OUT_SEND: begin
-                    if (m_axis_tvalid_r && m_axis_tready) begin
-                        m_axis_tvalid_r <= 1'b0;
-                        if (m_axis_tlast_r) begin
-                            stream_out_count_r <= OUTPUT_SIZE;
-                            m_axis_tlast_r <= 1'b0;
-                            done_sticky_r <= 1'b1;
-                            state_r <= ST_DONE;
-                        end
-                        else begin
-                            stream_out_count_r <= stream_out_count_r + 32'd1;
-                            state_r <= ST_OUT_PREP;
-                        end
-                    end
+                ST_DRAIN: begin
+                    state_r <= ST_DRAIN;
                 end
 
                 ST_DONE: begin
@@ -461,6 +433,18 @@ always @(posedge aclk or negedge aresetn) begin
                     state_r <= ST_IDLE;
                 end
             endcase
+
+            if (output_fifo_pop_w) begin
+                stream_out_count_r <= stream_out_count_r + 32'd1;
+
+                if (m_axis_tlast) begin
+                    if (stream_out_count_r != (OUTPUT_SIZE - 1)) begin
+                        error_flags_r[2] <= 1'b1;
+                    end
+                    done_sticky_r <= 1'b1;
+                    state_r <= ST_DONE;
+                end
+            end
         end
     end
 end
@@ -480,6 +464,7 @@ top_single_conv_pipeline #(
     .PADDING(PADDING),
     .OUT_H(OUT_H),
     .OUT_W(OUT_W),
+    .ENABLE_OUTPUT_BUFFER(0),
     .INPUT_SIZE(INPUT_SIZE),
     .WEIGHT_SIZE(WEIGHT_SIZE),
     .BIAS_SIZE(BIAS_SIZE),
@@ -492,6 +477,7 @@ top_single_conv_pipeline #(
     .clk(aclk),
     .rst_n(aresetn),
     .start_i(core_start_r),
+    .output_ready_i(core_output_ready_w),
     .input_load_en_i(input_load_en_r),
     .input_load_addr_i(input_load_addr_r),
     .input_stream_data_i(input_load_data_r),
@@ -501,14 +487,14 @@ top_single_conv_pipeline #(
     .bias_load_en_i(bias_load_en_r),
     .bias_load_addr_i(bias_load_addr_r),
     .bias_load_data_i(bias_load_data_r),
-    .output_read_addr_i(output_read_addr_r),
+    .output_read_addr_i({OUTPUT_ADDR_WIDTH{1'b0}}),
     .bias_addr_o(core_bias_addr_w),
     .output_addr_o(core_output_addr_w),
     .output_we_o(core_output_we_w),
     .busy_o(core_busy_w),
     .done_o(core_done_w),
     .output_data_o(core_output_data_w),
-    .output_read_data_o(core_output_read_data_w)
+    .output_read_data_o()
 );
 
 endmodule

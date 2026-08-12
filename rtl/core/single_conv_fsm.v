@@ -79,6 +79,7 @@ module single_conv_fsm #(
     input   wire        start_i         ,
     input   wire        input_window_valid_i,
     input   wire        datapath_result_valid_i,
+    input   wire        datapath_result_ready_i,
     input   wire [OUT_ADDR_WIDTH-1:0] datapath_result_addr_i,
 
     // output addr
@@ -204,7 +205,10 @@ module single_conv_fsm #(
             end
 
             WAIT_WINDOW: begin
-                if (input_window_valid_i) begin
+                if (input_window_valid_i &&
+                    (!last_mac_op_w ||
+                     !datapath_result_valid_i ||
+                     datapath_result_ready_i)) begin
                     next_state = MAC_EXEC       ;
                 end
                 else begin
@@ -227,7 +231,7 @@ module single_conv_fsm #(
             end
 
             WRITE_OUT: begin
-                if (datapath_result_valid_i &&
+                if (datapath_result_valid_i && datapath_result_ready_i &&
                     (datapath_result_addr_i == output_addr_o)) begin
                     next_state = DONE           ;
                 end
@@ -403,7 +407,7 @@ module single_conv_fsm #(
                 WRITE_OUT: begin
                     busy_o              <= 1'b1     ;
                     done_o              <= 1'b0     ;
-                    output_we_o         <= datapath_result_valid_i;
+                    output_we_o         <= datapath_result_valid_i && datapath_result_ready_i;
                     mac_en_o            <= 1'b0     ;   // toggle
                     acc_load_bias_o     <= 1'b0     ;
                 end

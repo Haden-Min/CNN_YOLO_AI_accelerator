@@ -85,6 +85,7 @@ module tb_single_conv_fsm;
         .start_i         (start_i),
         .input_window_valid_i(1'b1),
         .datapath_result_valid_i(1'b1),
+        .datapath_result_ready_i(1'b1),
         .datapath_result_addr_i(output_addr_o),
         .input_addr_o    (input_addr_o),
         .weight_addr_o   (weight_addr_o),

@@ -30,6 +30,7 @@ module conv_control_unit #(
     input wire start_i,
     input wire input_window_valid_i,
     input wire datapath_result_valid_i,
+    input wire datapath_result_ready_i,
     input wire [OUTPUT_ADDR_WIDTH-1:0] datapath_result_addr_i,
 
     output wire [INPUT_ADDR_WIDTH-1:0] input_base_addr_o,
@@ -71,6 +72,7 @@ single_conv_fsm #(
     .start_i(start_i),
     .input_window_valid_i(input_window_valid_i),
     .datapath_result_valid_i(datapath_result_valid_i),
+    .datapath_result_ready_i(datapath_result_ready_i),
     .datapath_result_addr_i(datapath_result_addr_i),
     .input_addr_o(input_base_addr_o),
     .weight_addr_o(weight_base_addr_o),
