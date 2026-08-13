@@ -1,0 +1,52 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2024 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2024.1 (win64) Build 5076996 Wed May 22 18:37:14 MDT 2024
+| Date         : Thu Aug 13 16:44:09 2026
+| Host         : HANYUL-GALAXYBOOK4-PRO running 64-bit major release  (build 9200)
+| Command      : report_utilization -hierarchical -file {C:/Users/hanyu/Documents/CNN Accelerator/CNN_YOLO_AI_accelerator/reports/tile_conv_multi_ic_ooc/utilization_hierarchical.rpt}
+| Design       : top_single_conv_tile_axi
+| Device       : xc7z020clg400-1
+| Speed File   : -1
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++------------------------------+---------------------------+------------+------------+---------+------+-----+--------+--------+------------+
+|           Instance           |           Module          | Total LUTs | Logic LUTs | LUTRAMs | SRLs | FFs | RAMB36 | RAMB18 | DSP Blocks |
++------------------------------+---------------------------+------------+------------+---------+------+-----+--------+--------+------------+
+| top_single_conv_tile_axi     |                     (top) |       1143 |       1101 |      42 |    0 | 838 |      1 |      9 |          0 |
+|   (top_single_conv_tile_axi) |                     (top) |         99 |         99 |       0 |    0 | 207 |      0 |      0 |          0 |
+|   u_output_fifo              |          axis_output_fifo |         97 |         73 |      24 |    0 |  13 |      0 |      0 |          0 |
+|   u_psum_buffer              |          tile_psum_buffer |         51 |         51 |       0 |    0 | 114 |      1 |      0 |          0 |
+|   u_tile_core                |      top_single_conv_tile |        905 |        887 |      18 |    0 | 504 |      0 |      9 |          0 |
+|     (u_tile_core)            |      top_single_conv_tile |          2 |          2 |       0 |    0 |   0 |      0 |      0 |          0 |
+|     u_controller             |      tile_conv_controller |         99 |         99 |       0 |    0 |  38 |      0 |      0 |          0 |
+|     u_datapath               |             conv_datapath |        544 |        544 |       0 |    0 | 273 |      0 |      0 |          0 |
+|       (u_datapath)           |             conv_datapath |          2 |          2 |       0 |    0 | 241 |      0 |      0 |          0 |
+|       gen_acc_bank[0].u_acc  |                       acc |         66 |         66 |       0 |    0 |  32 |      0 |      0 |          0 |
+|       gen_mlt_lane[0].u_mlt  |                       mlt |         42 |         42 |       0 |    0 |   0 |      0 |      0 |          0 |
+|       gen_mlt_lane[1].u_mlt  |                     mlt_0 |         42 |         42 |       0 |    0 |   0 |      0 |      0 |          0 |
+|       gen_mlt_lane[2].u_mlt  |                     mlt_1 |         42 |         42 |       0 |    0 |   0 |      0 |      0 |          0 |
+|       gen_mlt_lane[3].u_mlt  |                     mlt_2 |         42 |         42 |       0 |    0 |   0 |      0 |      0 |          0 |
+|       gen_mlt_lane[4].u_mlt  |                     mlt_3 |         42 |         42 |       0 |    0 |   0 |      0 |      0 |          0 |
+|       gen_mlt_lane[5].u_mlt  |                     mlt_4 |         42 |         42 |       0 |    0 |   0 |      0 |      0 |          0 |
+|       gen_mlt_lane[6].u_mlt  |                     mlt_5 |         42 |         42 |       0 |    0 |   0 |      0 |      0 |          0 |
+|       gen_mlt_lane[7].u_mlt  |                     mlt_6 |         42 |         42 |       0 |    0 |   0 |      0 |      0 |          0 |
+|       gen_mlt_lane[8].u_mlt  |                     mlt_7 |         42 |         42 |       0 |    0 |   0 |      0 |      0 |          0 |
+|       u_at                   |                        at |         98 |         98 |       0 |    0 |   0 |      0 |      0 |          0 |
+|     u_input_loader           |         tile_input_loader |         24 |         24 |       0 |    0 |  15 |      0 |      0 |          0 |
+|     u_line_buffer            |     tile_line_buffer_3row |         46 |         28 |      18 |    0 |  52 |      0 |      0 |          0 |
+|     u_weight_mem             |           conv_weight_mem |        198 |        198 |       0 |    0 |   0 |      0 |      9 |          0 |
+|     u_window_generator       | tile_window_generator_3x3 |        118 |        118 |       0 |    0 | 126 |      0 |      0 |          0 |
++------------------------------+---------------------------+------------+------------+---------+------+-----+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

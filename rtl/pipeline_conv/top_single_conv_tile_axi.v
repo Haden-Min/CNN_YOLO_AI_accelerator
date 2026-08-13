@@ -13,7 +13,8 @@ module top_single_conv_tile_axi #(
     parameter OUTPUT_ADDR_WIDTH = (OUTPUT_SIZE <= 1) ? 1 : $clog2(OUTPUT_SIZE),
     parameter AXI_ADDR_WIDTH     = 6,
     parameter AXI_DATA_WIDTH     = 32,
-    parameter OUTPUT_FIFO_DEPTH = 16
+    parameter OUTPUT_FIFO_DEPTH = 16,
+    parameter MAX_INPUT_CHANNELS = 1024
 )(
     input wire aclk,
     input wire aresetn,
@@ -53,6 +54,8 @@ module top_single_conv_tile_axi #(
 );
 
 localparam PARAM_WORDS = 10;
+localparam IC_COUNT_WIDTH = (MAX_INPUT_CHANNELS <= 1) ? 1 :
+                            $clog2(MAX_INPUT_CHANNELS + 1);
 
 localparam ST_IDLE       = 4'd0;
 localparam ST_LOAD_PARAM = 4'd1;
@@ -68,6 +71,8 @@ localparam REG_TILE_INPUTS   = 4'd4;
 localparam REG_TILE_OUTPUTS  = 4'd5;
 localparam REG_ERROR         = 4'd6;
 localparam REG_PARAM_WORDS   = 4'd7;
+localparam REG_TOTAL_IC      = 4'd8;
+localparam REG_CURRENT_IC    = 4'd9;
 
 reg [3:0] state_r;
 reg [3:0] param_count_r;
@@ -76,6 +81,9 @@ reg done_sticky_r;
 reg [31:0] stream_in_count_r;
 reg [31:0] stream_out_count_r;
 reg [31:0] error_flags_r;
+reg [IC_COUNT_WIDTH-1:0] total_ic_r;
+reg [IC_COUNT_WIDTH-1:0] current_ic_r;
+reg signed [ACC_WIDTH-1:0] layer_bias_r;
 
 reg aw_pending_r;
 reg [AXI_ADDR_WIDTH-1:0] awaddr_r;
@@ -94,6 +102,7 @@ wire ctrl_run_tile_w;
 wire ctrl_clear_done_w;
 wire ctrl_soft_reset_w;
 wire ctrl_load_param_w;
+wire total_ic_write_w;
 
 wire param_axis_ready_w;
 wire core_input_ready_w;
@@ -105,12 +114,20 @@ wire bias_load_en_w;
 wire core_resetn_w;
 wire core_start_w;
 wire signed [ACC_WIDTH-1:0] core_result_data_w;
+wire [OUTPUT_ADDR_WIDTH-1:0] core_result_addr_w;
 wire core_result_last_w;
 wire core_result_valid_w;
 wire core_result_ready_w;
 wire core_busy_w;
 wire core_done_w;
 wire [1:0] core_input_error_w;
+
+wire signed [ACC_WIDTH-1:0] psum_result_data_w;
+wire psum_result_last_w;
+wire psum_result_valid_w;
+wire psum_result_ready_w;
+wire first_channel_w;
+wire last_channel_w;
 
 localparam FIFO_COUNT_WIDTH = (OUTPUT_FIFO_DEPTH <= 1) ? 1 : $clog2(OUTPUT_FIFO_DEPTH + 1);
 wire [FIFO_COUNT_WIDTH-1:0] fifo_level_w;
@@ -144,6 +161,8 @@ assign ctrl_soft_reset_w = write_commit_w && write_strb_w[0] &&
                            (write_addr_w[5:2] == REG_CTRL) && write_data_w[2];
 assign ctrl_load_param_w = write_commit_w && write_strb_w[0] &&
                            (write_addr_w[5:2] == REG_CTRL) && write_data_w[3];
+assign total_ic_write_w = write_commit_w && write_strb_w[0] &&
+                          (write_addr_w[5:2] == REG_TOTAL_IC);
 
 assign param_axis_ready_w = (state_r == ST_LOAD_PARAM);
 assign s_axis_tready = param_axis_ready_w ||
@@ -158,6 +177,8 @@ assign bias_load_en_w = axis_accept_w && (state_r == ST_LOAD_PARAM) &&
 
 assign core_resetn_w = aresetn && !ctrl_soft_reset_w;
 assign core_start_w = (state_r == ST_TILE_START);
+assign first_channel_w = (current_ic_r == 0);
+assign last_channel_w = (current_ic_r == total_ic_r - 1'b1);
 
 assign fifo_pop_w = m_axis_tvalid && m_axis_tready;
 assign fifo_clear_w = ctrl_soft_reset_w ||
@@ -233,6 +254,8 @@ always @(posedge aclk or negedge aresetn) begin
                 REG_TILE_OUTPUTS:  s_axi_rdata <= OUTPUT_SIZE;
                 REG_ERROR:        s_axi_rdata <= error_flags_r;
                 REG_PARAM_WORDS:   s_axi_rdata <= PARAM_WORDS;
+                REG_TOTAL_IC:      s_axi_rdata <= total_ic_r;
+                REG_CURRENT_IC:    s_axi_rdata <= current_ic_r;
                 default:           s_axi_rdata <= 32'd0;
             endcase
         end
@@ -251,21 +274,46 @@ always @(posedge aclk or negedge aresetn) begin
         stream_in_count_r <= 32'd0;
         stream_out_count_r <= 32'd0;
         error_flags_r <= 32'd0;
+        total_ic_r <= {{(IC_COUNT_WIDTH-1){1'b0}}, 1'b1};
+        current_ic_r <= {IC_COUNT_WIDTH{1'b0}};
+        layer_bias_r <= {ACC_WIDTH{1'b0}};
     end
     else if (ctrl_soft_reset_w) begin
         state_r <= ST_IDLE;
         param_count_r <= 4'd0;
+        param_loaded_r <= 1'b0;
         done_sticky_r <= 1'b0;
         stream_in_count_r <= 32'd0;
         stream_out_count_r <= 32'd0;
         error_flags_r <= 32'd0;
+        current_ic_r <= {IC_COUNT_WIDTH{1'b0}};
     end
     else begin
         if (ctrl_clear_done_w) begin
             done_sticky_r <= 1'b0;
         end
 
-        case (state_r)
+        if (total_ic_write_w) begin
+            if (state_r != ST_IDLE) begin
+                error_flags_r[3] <= 1'b1;
+            end
+            else if ((write_data_w == 0) ||
+                     (write_data_w > MAX_INPUT_CHANNELS)) begin
+                error_flags_r[6] <= 1'b1;
+                done_sticky_r <= 1'b1;
+            end
+            else begin
+                total_ic_r <= write_data_w[IC_COUNT_WIDTH-1:0];
+                current_ic_r <= {IC_COUNT_WIDTH{1'b0}};
+                param_loaded_r <= 1'b0;
+                param_count_r <= 4'd0;
+                done_sticky_r <= 1'b0;
+                stream_in_count_r <= 32'd0;
+                stream_out_count_r <= 32'd0;
+                error_flags_r <= 32'd0;
+            end
+        end
+        else case (state_r)
             ST_IDLE: begin
                 if (ctrl_load_param_w) begin
                     state_r <= ST_LOAD_PARAM;
@@ -292,6 +340,10 @@ always @(posedge aclk or negedge aresetn) begin
             ST_LOAD_PARAM: begin
                 if (axis_accept_w) begin
                     stream_in_count_r <= stream_in_count_r + 1'b1;
+
+                    if (param_last_word_w && first_channel_w) begin
+                        layer_bias_r <= s_axis_tdata[ACC_WIDTH-1:0];
+                    end
 
                     if (s_axis_tlast && !param_last_word_w) begin
                         error_flags_r[0] <= 1'b1;
@@ -323,7 +375,15 @@ always @(posedge aclk or negedge aresetn) begin
                 error_flags_r[5:4] <= core_input_error_w;
 
                 if (core_done_w) begin
-                    state_r <= ST_TILE_DRAIN;
+                    if (last_channel_w) begin
+                        state_r <= ST_TILE_DRAIN;
+                    end
+                    else begin
+                        current_ic_r <= current_ic_r + 1'b1;
+                        param_loaded_r <= 1'b0;
+                        done_sticky_r <= 1'b1;
+                        state_r <= ST_IDLE;
+                    end
                 end
             end
 
@@ -345,6 +405,7 @@ always @(posedge aclk or negedge aresetn) begin
                 end
                 done_sticky_r <= 1'b1;
                 state_r <= ST_IDLE;
+                current_ic_r <= {IC_COUNT_WIDTH{1'b0}};
             end
         end
 
@@ -376,9 +437,11 @@ top_single_conv_tile #(
     .weight_load_addr_i(param_count_r),
     .weight_load_data_i(s_axis_tdata[DATA_WIDTH-1:0]),
     .bias_load_en_i(bias_load_en_w),
-    .bias_load_data_i(s_axis_tdata[ACC_WIDTH-1:0]),
+    // Bias is added once by the partial-sum buffer. The per-channel
+    // convolution core therefore always starts from zero.
+    .bias_load_data_i({ACC_WIDTH{1'b0}}),
     .result_data_o(core_result_data_w),
-    .result_addr_o(),
+    .result_addr_o(core_result_addr_w),
     .result_last_o(core_result_last_w),
     .result_valid_o(core_result_valid_w),
     .result_ready_i(core_result_ready_w),
@@ -388,6 +451,29 @@ top_single_conv_tile #(
     .state_o()
 );
 
+tile_psum_buffer #(
+    .DATA_WIDTH(ACC_WIDTH),
+    .OUTPUT_SIZE(OUTPUT_SIZE),
+    .ADDR_WIDTH(OUTPUT_ADDR_WIDTH)
+) u_psum_buffer (
+    .clk(aclk),
+    .rst_n(core_resetn_w),
+    .channel_data_i(core_result_data_w),
+    .channel_addr_i(core_result_addr_w),
+    .channel_last_i(core_result_last_w),
+    .channel_valid_i(core_result_valid_w),
+    .channel_ready_o(core_result_ready_w),
+    .first_channel_i(first_channel_w),
+    .last_channel_i(last_channel_w),
+    .bias_i(layer_bias_r),
+    .result_data_o(psum_result_data_w),
+    .result_addr_o(),
+    .result_last_o(psum_result_last_w),
+    .result_valid_o(psum_result_valid_w),
+    .result_ready_i(psum_result_ready_w),
+    .busy_o()
+);
+
 axis_output_fifo #(
     .DATA_WIDTH(AXI_DATA_WIDTH),
     .DEPTH(OUTPUT_FIFO_DEPTH)
@@ -395,10 +481,10 @@ axis_output_fifo #(
     .clk(aclk),
     .rst_n(aresetn),
     .clear_i(fifo_clear_w),
-    .s_data_i(core_result_data_w[AXI_DATA_WIDTH-1:0]),
-    .s_last_i(core_result_last_w),
-    .s_valid_i(core_result_valid_w),
-    .s_ready_o(core_result_ready_w),
+    .s_data_i(psum_result_data_w[AXI_DATA_WIDTH-1:0]),
+    .s_last_i(psum_result_last_w),
+    .s_valid_i(psum_result_valid_w),
+    .s_ready_o(psum_result_ready_w),
     .m_data_o(m_axis_tdata),
     .m_last_o(m_axis_tlast),
     .m_valid_o(m_axis_tvalid),

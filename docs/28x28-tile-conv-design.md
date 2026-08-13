@@ -85,7 +85,8 @@ PL에 padding 로직을 추가한 뒤 처리해야 한다.
 
 ## PS 전송 프로토콜
 
-같은 MM2S 채널을 두 번 사용한다. 두 packet을 하나로 합치면 안 된다.
+같은 MM2S 채널을 parameter packet과 tile packet에 순차적으로 사용한다. 다중
+입력 채널에서는 이 두 packet을 IC마다 반복하며 두 packet을 하나로 합치면 안 된다.
 
 ### 1. 파라미터 packet
 
@@ -97,11 +98,16 @@ PL에 padding 로직을 추가한 뒤 처리해야 한다.
 
 ### 2. 입력 타일 packet
 
-1. S2MM 출력 buffer를 먼저 준비한다.
+1. 마지막 입력 채널에서만 S2MM 출력 buffer를 먼저 준비한다.
 2. `CTRL.RUN_TILE=1` 명령을 쓴다.
 3. row-major 784개 AXIS word를 보낸다. 각 word의 하위 8bit만 INT8 픽셀이다.
 4. 784번째 word에서만 `TLAST=1`이어야 한다.
-5. S2MM은 676개의 INT32 word를 받으며 마지막 출력에서 `TLAST=1`이다.
+5. 중간 입력 채널은 출력하지 않고 PL BRAM에 partial sum을 저장한다.
+6. 마지막 입력 채널의 S2MM은 676개의 INT32 word를 받으며 마지막 출력에서 `TLAST=1`이다.
+
+실행 전에 `TOTAL_IC`를 설정한다. 각 중간 채널이 끝나면 IRQ를 확인하고
+`CLEAR_DONE` 후 다음 채널의 parameter/tile packet을 보낸다. 자세한 순서는
+[`multi-input-channel-accumulation.md`](multi-input-channel-accumulation.md)를 참고한다.
 
 ## AXI-Lite 레지스터
 
@@ -115,6 +121,8 @@ PL에 padding 로직을 추가한 뒤 처리해야 한다.
 | `0x14` | TILE_OUTPUTS | `676` |
 | `0x18` | ERROR | protocol/error flags |
 | `0x1c` | PARAM_WORDS | `10` |
+| `0x20` | TOTAL_IC | 순차 누적할 입력 채널 수, 1~1024 |
+| `0x24` | CURRENT_IC | 현재 0-based 입력 채널 index |
 
 `SOFT_RESET`은 실행 상태와 카운터를 초기화하지만 이미 적재한 weight/bias는 유지한다.
 FPGA 전체 reset 후에는 반드시 `LOAD_PARAM`을 먼저 수행해야 한다.
@@ -126,7 +134,8 @@ Vivado Simulator 2024.1:
 ```text
 PASS: tb_tile_window_path rows=4 windows=104
 PASS: tb_single_conv_tile tile=28x28 inputs=784 outputs=676 cycles=6690 backpressure=1
-PASS: tb_single_conv_tile_axi tile=28x28 inputs=784 outputs=676 cycles=6459 backpressure=1 continuous_input=0 status=0x00000811
+PASS: tb_single_conv_tile_axi tile=28x28 inputs=784 outputs=676 cycles=6461 backpressure=1 continuous_input=0 status=0x00000811
+PASS: tb_multi_ic_conv_tile_axi channels=3 tile=6x6 outputs=16 status=0x00000811
 ```
 
 XC7Z020CLG400-1, 100 MHz, clock uncertainty 0.2 ns, OOC place/route:
@@ -140,6 +149,10 @@ FF   = 705
 BRAM18 = 9
 DSP  = 0
 ```
+
+다중 입력 채널 partial-sum buffer가 포함된 최신 OOC 결과는 WNS `+1.234 ns`,
+TNS `0`, setup failing endpoint `0`이다. 676x32-bit partial sum은 RAMB36 한 개로
+합성되었다.
 
 출력 FIFO는 24개 LUTRAM과 13개 FF로 합성되었다. OOC 결과는 내부
 register-to-register 경로를 검증하며 미제약 내부 endpoint는 0개이다. AXI 최상위

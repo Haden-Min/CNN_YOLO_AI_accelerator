@@ -10,6 +10,7 @@ rtl/pipeline_conv/tile_line_buffer_3row.v
 rtl/pipeline_conv/tile_window_generator_3x3.v
 rtl/pipeline_conv/tile_conv_controller.v
 rtl/pipeline_conv/top_single_conv_tile.v
+rtl/pipeline_conv/tile_psum_buffer.v
 rtl/pipeline_conv/axis_output_fifo.v
 rtl/pipeline_conv/top_single_conv_tile_axi.v
 rtl/pipeline_conv/top_single_conv_tile_16.v

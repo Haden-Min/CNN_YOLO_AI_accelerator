@@ -103,11 +103,15 @@ The reproducible Vivado/PYNQ handoff procedure is documented in
 [`docs/pynq-z2-block-design-handoff-guide.md`](docs/pynq-z2-block-design-handoff-guide.md).
 The new board-bring-up candidate is the fixed 28x28 tile path documented in
 [`docs/28x28-tile-conv-design.md`](docs/28x28-tile-conv-design.md). It keeps
-only three 28-pixel rows in PL, streams completed INT32 outputs immediately to
-the DMA FIFO, and uses separate parameter-load and tile-run packets. Exact RTL
-and AXI simulations pass for 784 inputs and 676 outputs. XC7Z020-1 out-of-context
-place-and-route also meets 100 MHz with positive setup slack. A full block-design
-timing run is still required after connecting the PS, DMA, and interconnect.
+only three 28-pixel rows in PL and uses separate parameter-load and tile-run
+packets. Input channels are processed serially (`IC_PAR=1`); one BRAM36 stores
+the INT32 partial-sum tile and only the final accumulated result enters the DMA
+output FIFO. The protocol and measured results are documented in
+[`docs/multi-input-channel-accumulation.md`](docs/multi-input-channel-accumulation.md).
+IC=1 compatibility and IC=3 accumulation simulations pass. XC7Z020-1
+out-of-context place-and-route meets 100 MHz with `WNS=+1.234 ns`. A full
+block-design timing run is still required after connecting the PS, DMA, and
+interconnect.
 
 A separately synthesizable 16x16 alternative is also available. The measured
 timing, utilization, latency, halo overhead, and 416x416 tiling comparison are

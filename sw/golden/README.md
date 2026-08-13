@@ -21,6 +21,7 @@ Run from the repository root:
 python sw/golden/script/generate_single_conv_fixture.py --fixture single_conv_001
 python sw/golden/script/generate_single_conv_fixture.py --fixture single_conv_tile_28
 python sw/golden/script/generate_single_conv_fixture.py --fixture single_conv_tile_16
+python sw/golden/script/generate_single_conv_fixture.py --fixture multi_ic_conv_tile_28
 python sw/golden/model/conv2d_int8_reference.py --fixture sw/fixture/single_conv_001 --check-only
 python sw/golden/script/generate_rtl_mem.py --fixture sw/fixture/single_conv_001
 python tests/rtl/compare_conv_output.py --fixture sw/fixture/single_conv_001 --actual sw/fixture/single_conv_001/expected_acc_int32.hex
@@ -28,3 +29,5 @@ python tests/rtl/compare_conv_output.py --fixture sw/fixture/single_conv_001 --a
 
 `single_conv_tile_28` and `single_conv_tile_16` use the same deterministic
 input formula, weights, and bias for the tile-size comparison.
+`multi_ic_conv_tile_28` uses three CHW input channels and verifies that bias is
+added once while all channel convolutions are accumulated into one INT32 tile.

@@ -13,5 +13,4 @@ rtl/pipeline_conv/top_single_conv_tile.v
 rtl/pipeline_conv/tile_psum_buffer.v
 rtl/pipeline_conv/axis_output_fifo.v
 rtl/pipeline_conv/top_single_conv_tile_axi.v
-rtl/pipeline_conv/top_single_conv_tile_16.v
-rtl/pipeline_conv/top_single_conv_tile_axi_16.v
+rtl/tb/tb_multi_ic_conv_tile_axi.v
