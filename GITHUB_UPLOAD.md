@@ -6,14 +6,15 @@
 
 ## 업로드할 내용
 
-- `rtl/`: 28x28/16x16 타일 convolution RTL, AXI wrapper, testbench, filelist
-- `sw/`: golden fixture 생성 코드, 16x16/28x28 fixture, PYNQ smoke test
+- `rtl/`: 타일 convolution RTL, serial-IC partial-sum BRAM, AXI wrapper와 테스트
+- `sw/`: 다중 IC golden fixture와 PYNQ 채널별 DMA 실행 코드
 - `scripts/`: Vivado OOC 합성 스크립트
 - `reports/`: 타일 크기별 timing/utilization 결과
 - `docs/`: 구조, 블록 디자인, 외주 모듈 규격 문서
 - `README.md`: 프로젝트 사용법과 현재 구현 상태
 
-`.Xil/`, `xsim.dir/`, `*.wdb`, `*.jou`, `*.log`, Python cache 등 재생성 가능한 로컬 산출물은 `.gitignore`에 의해 업로드되지 않는다.
+`.Xil/`, `xsim.dir/`, `*.wdb`, `*.jou`, `*.log`, `*.dcp`, methodology report,
+Python cache 등 재생성 가능한 로컬 산출물은 `.gitignore`에 의해 업로드되지 않는다.
 
 ## PowerShell에서 실행할 명령어
 
@@ -26,13 +27,17 @@ git branch --show-current
 git remote -v
 git status --short
 
-git add -- README.md GITHUB_UPLOAD.md docs reports rtl scripts sw
+git add -- .gitignore README.md GITHUB_UPLOAD.md
+git add -- docs rtl
+git add -- sw/golden sw/pynq sw/fixture/multi_ic_conv_tile_28
+git add -- reports/tile-size-comparison.md reports/tile_conv_multi_ic_ooc/summary.md
+git add -- reports/tile_conv_multi_ic_ooc/timing_summary.rpt reports/tile_conv_multi_ic_ooc/utilization_hierarchical.rpt
 
 git status --short
 git diff --cached --check
 git diff --cached --stat
 
-git commit -m "Add tiled CNN accelerator and PYNQ integration"
+git commit -m "Add serial input-channel accumulation"
 git push -u origin codex/axi-wrapper-pynq-dma
 ```
 
@@ -47,7 +52,7 @@ git push -u origin codex/axi-wrapper-pynq-dma
 권장 제목:
 
 ```text
-Add tiled CNN accelerator and PYNQ integration
+Add serial input-channel accumulation
 ```
 
 병합 후 로컬 `main`을 최신 상태로 맞추려면 다음을 실행한다.

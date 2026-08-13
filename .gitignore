@@ -21,7 +21,10 @@ xsim.dir/
 *.log
 *.str
 *.wdb
+*.dcp
 *.xpr
+clockInfo.txt
+reports/**/methodology.rpt
 *.runs/
 *.cache/
 *.hw/

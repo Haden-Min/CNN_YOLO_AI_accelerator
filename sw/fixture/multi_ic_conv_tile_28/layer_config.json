@@ -1,0 +1,32 @@
+{
+  "fixture_id": "multi_ic_conv_tile_28",
+  "layout": "CHW",
+  "input_shape": [
+    3,
+    28,
+    28
+  ],
+  "output_shape": [
+    1,
+    26,
+    26
+  ],
+  "kernel_shape": [
+    1,
+    3,
+    3,
+    3
+  ],
+  "stride": 1,
+  "padding": 0,
+  "input_dtype": "int8",
+  "weight_dtype": "int8",
+  "bias_dtype": "int32",
+  "acc_dtype": "int32",
+  "output_dtype": "int8",
+  "input_zero_point": 0,
+  "weight_zero_point": 0,
+  "output_zero_point": 0,
+  "compare_target_tile": "expected_acc_int32",
+  "endianness": "little"
+}

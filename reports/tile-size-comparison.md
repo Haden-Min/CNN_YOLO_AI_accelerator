@@ -3,7 +3,7 @@
 | Metric | 28x28 | 16x16 |
 | --- | ---: | ---: |
 | Input/output pixels | 784 / 676 | 256 / 196 |
-| AXI cycles per tile | 5701 | 1729 |
+| AXI cycles per tile | 5703 | 1731 |
 | Latency at 100 MHz | 57.01 us | 17.29 us |
 | Cycles per output | 8.433 | 8.821 |
 | Output throughput | 11.858 Moutput/s | 11.336 Moutput/s |

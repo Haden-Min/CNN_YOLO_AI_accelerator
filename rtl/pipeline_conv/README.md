@@ -15,11 +15,16 @@ The current deployment candidate is a separate fixed tile architecture:
   compute, and one-next-row load
 - `top_single_conv_tile.v`: reuses `conv_weight_mem`, `conv_bias_mem`, and
   `conv_datapath` for one IC=1, OC=1 valid 3x3 convolution
+- `tile_psum_buffer.v`: stores one INT32 partial sum per output position in
+  BRAM while input channels are processed serially
 - `top_single_conv_tile_axi.v`: uses distinct 10-word parameter and 784-word
-  tile packets, then returns 676 INT32 results through `axis_output_fifo`
+  tile packets for every input channel, then returns 676 accumulated INT32
+  results through `axis_output_fifo` only after the final input channel
 
 The full interface, register map, verification results, and limitations are in
 [`../../docs/28x28-tile-conv-design.md`](../../docs/28x28-tile-conv-design.md).
+Serial input-channel accumulation is documented in
+[`../../docs/multi-input-channel-accumulation.md`](../../docs/multi-input-channel-accumulation.md).
 
 The fixed 16x16 alternative uses `top_single_conv_tile_16.v` and
 `top_single_conv_tile_axi_16.v`. It accepts 256 pixels and returns 196 results.
@@ -85,8 +90,8 @@ channels before the line buffer overwrites old rows.
 The AXI wrapper keeps the same row-burst behavior but turns it into a DMA-style
 stream contract:
 
-- every completed INT32 result is pushed immediately into a 16-word output
-  FIFO; the AXI wrapper does not instantiate the full-frame output BRAM
+- each non-final input channel updates the output-position partial sums in one
+  BRAM36; only final-channel INT32 results are pushed into the 16-word FIFO
 - `M_AXIS_TVALID`, `TDATA`, and `TLAST` remain stable while
   `M_AXIS_TREADY=0`
 - the core stalls safely if both the FIFO and its one-word result holding
@@ -103,6 +108,9 @@ stream contract:
 | `0x10` | expected input stream words |
 | `0x14` | expected output stream words |
 | `0x18` | error flags |
+| `0x1c` | parameter words per input channel (`10`) |
+| `0x20` | total serial input-channel count (`1..1024`) |
+| `0x24` | current 0-based input-channel index |
 
 For the current 416x416 fixture, one MM2S input payload contains 173066 32-bit
 stream words: 173056 INT8 input words in row order, 9 INT8 weight words, and 1

@@ -146,6 +146,42 @@ TILE_16_WEIGHT_INT8 = TILE_28_WEIGHT_INT8
 TILE_16_BIAS_INT32 = TILE_28_BIAS_INT32
 
 
+MULTI_IC_TILE_28_CONFIG = {
+    "fixture_id": "multi_ic_conv_tile_28",
+    "layout": "CHW",
+    "input_shape": [3, 28, 28],
+    "output_shape": [1, 26, 26],
+    "kernel_shape": [1, 3, 3, 3],
+    "stride": 1,
+    "padding": 0,
+    "input_dtype": "int8",
+    "weight_dtype": "int8",
+    "bias_dtype": "int32",
+    "acc_dtype": "int32",
+    "output_dtype": "int8",
+    "input_zero_point": 0,
+    "weight_zero_point": 0,
+    "output_zero_point": 0,
+    "compare_target_tile": "expected_acc_int32",
+    "endianness": "little",
+}
+
+MULTI_IC_TILE_28_INPUT_INT8 = [
+    ((channel * 11 + row * 7 + col * 3 + 5) % 23) - 11
+    for channel in range(3)
+    for row in range(28)
+    for col in range(28)
+]
+
+MULTI_IC_TILE_28_WEIGHT_INT8 = [
+    ((channel * 5 + lane * 3 + 1) % 9) - 4
+    for channel in range(3)
+    for lane in range(9)
+]
+
+MULTI_IC_TILE_28_BIAS_INT32 = [17]
+
+
 def write_config(path: Path, config: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(config, indent=2) + "\n", encoding="ascii")
@@ -170,6 +206,12 @@ def generate_fixture(fixture_id: str, fixtures_root: Path) -> Path:
             TILE_16_INPUT_INT8,
             TILE_16_WEIGHT_INT8,
             TILE_16_BIAS_INT32,
+        ),
+        MULTI_IC_TILE_28_CONFIG["fixture_id"]: (
+            MULTI_IC_TILE_28_CONFIG,
+            MULTI_IC_TILE_28_INPUT_INT8,
+            MULTI_IC_TILE_28_WEIGHT_INT8,
+            MULTI_IC_TILE_28_BIAS_INT32,
         ),
     }
     if fixture_id not in fixtures:

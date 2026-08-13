@@ -186,6 +186,8 @@ Address Editor에서 예를 들어 다음처럼 고정한다.
 | `0x14` | tile output words = 676 |
 | `0x18` | error flags |
 | `0x1c` | parameter words = 10 |
+| `0x20` | total serial input channels = 1~1024 |
+| `0x24` | current 0-based input channel index |
 
 ERROR bit:
 
@@ -197,6 +199,7 @@ ERROR bit:
 | 3 | busy 중 명령 또는 parameter 없이 RUN_TILE |
 | 4 | input tile의 early TLAST |
 | 5 | input tile 마지막 word의 TLAST 누락 |
+| 6 | TOTAL_IC가 0이거나 최대값 초과 |
 
 주요 STATUS bit:
 
@@ -215,26 +218,30 @@ ERROR bit:
 
 ## 8. DMA packet 계약
 
-MM2S 한 번에 모든 데이터를 합치지 않는다. 같은 MM2S channel로 별도 DMA transfer
-두 번을 실행한다.
+MM2S 한 번에 모든 데이터를 합치지 않는다. `TOTAL_IC`를 먼저 설정한 다음 같은
+MM2S channel로 아래 두 DMA transfer를 입력 채널마다 반복한다.
 
 ### Transfer A: parameter load
 
 - CTRL bit3 `LOAD_PARAM` 실행
 - 10 word / 40 byte
 - word 0~8: 하위 8bit에 signed INT8 weight
-- word 9: 32bit signed INT32 bias
+- word 9: 32bit signed INT32 bias. 첫 입력 채널의 bias만 누적에 사용된다.
 - TLAST: word 9
 
 ### Transfer B/C: tile run
 
-- S2MM를 676 word / 2704 byte buffer로 먼저 arm
+- 마지막 입력 채널에서만 S2MM를 676 word / 2704 byte buffer로 먼저 arm
 - MM2S를 784 word / 3136 byte buffer로 arm
 - CTRL bit0 `RUN_TILE` 실행
 - MM2S word: row-major 픽셀, 하위 8bit signed INT8
 - MM2S TLAST: word 783
 - S2MM data: 676개의 signed INT32 accumulator
 - S2MM TLAST: output word 675
+
+중간 입력 채널은 PL의 partial-sum BRAM만 갱신하고 S2MM 출력을 만들지 않는다.
+각 중간 채널 완료 IRQ 후 `CURRENT_IC` 증가를 확인하고 `CLEAR_DONE`을 실행한 뒤
+다음 parameter/tile transfer를 진행한다.
 
 `SOFT_RESET`은 wrapper 상태를 초기화하지만 weight/bias RAM은 지우지 않는다. FPGA
 전체 reset 뒤에는 반드시 parameter transfer부터 수행한다.
@@ -260,6 +267,7 @@ write_project_tcl -force cnn_tile_system_project.tcl
 - `cnn_tile_system.hwh`
 - `sw/pynq/smoke_test_single_conv.py`
 - `sw/fixture/single_conv_tile_28/`
+- `sw/fixture/multi_ic_conv_tile_28/` (다중 채널 검증 시)
 
 실행:
 
@@ -272,7 +280,7 @@ python3 smoke_test_single_conv.py \
 합격 문구:
 
 ```text
-PASS: PYNQ-Z2 AXI DMA smoke test parameters=10 inputs=784 outputs=676
+PASS: PYNQ-Z2 AXI DMA smoke test input_channels=1 parameters_per_channel=10 inputs_per_channel=784 outputs=676
 ```
 
 ## 10. 전체 feature map 타일링 주의
