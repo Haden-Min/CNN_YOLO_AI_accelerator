@@ -37,7 +37,7 @@ INT32 tile accumulator
 
 ## 2. 기존 모듈과 교체 이유
 
-현재 프로젝트의 `rtl/pipeline_conv/activation.v`는 음수 값을 단순 arithmetic
+현재 프로젝트의 `rtl/active/datapath/activation.v`는 음수 값을 단순 arithmetic
 right shift한다.
 
 ```verilog
@@ -142,7 +142,7 @@ parameter가 들어와도 wrap-around하지 않아야 한다.
 파일명과 모듈명은 다음을 사용한다.
 
 ```text
-파일: rtl/pipeline_conv/activation_int32_stream.v
+파일: rtl/active/datapath/activation_int32_stream.v
 모듈: activation_int32_stream
 ```
 
@@ -293,7 +293,7 @@ def activation_int32(x: int, mode: int,
 ## 9. 테스트벤치 요구사항
 
 ```text
-파일: rtl/tb/tb_activation_int32_stream.v
+파일: rtl/tb/current/tb_activation_int32_stream.v
 top:  tb_activation_int32_stream
 ```
 
@@ -375,8 +375,8 @@ pipeline 연결을 변경하고 기존 모듈을 정리한다.
 ## 13. 제출 파일
 
 ```text
-rtl/pipeline_conv/activation_int32_stream.v
-rtl/tb/tb_activation_int32_stream.v
+rtl/active/datapath/activation_int32_stream.v
+rtl/tb/current/tb_activation_int32_stream.v
 rtl/filelists/activation_tb.f
 Python golden 또는 fixture 생성 파일
 구현 메모/README

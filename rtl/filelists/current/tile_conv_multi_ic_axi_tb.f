@@ -1,0 +1,16 @@
+rtl/active/datapath/mlt.v
+rtl/active/datapath/at.v
+rtl/active/datapath/acc.v
+rtl/active/datapath/activation.v
+rtl/active/datapath/conv_datapath.v
+rtl/active/memory/conv_weight_mem.v
+rtl/active/memory/conv_bias_mem.v
+rtl/active/memory/tile_input_loader.v
+rtl/active/memory/tile_line_buffer_3row.v
+rtl/active/memory/tile_window_generator_3x3.v
+rtl/active/core/tile_conv_controller.v
+rtl/active/core/top_single_conv_tile.v
+rtl/active/memory/tile_psum_buffer.v
+rtl/active/interface/axis_output_fifo.v
+rtl/active/top_single_conv_tile_axi.v
+rtl/tb/current/tb_multi_ic_conv_tile_axi.v

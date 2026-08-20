@@ -163,15 +163,15 @@ implementation timing을 다시 확인해야 한다.
 ## 재현 명령
 
 ```powershell
-xvlog -f rtl/filelists/tile_window_tb.f
+xvlog -f rtl/filelists/current/tile_window_tb.f
 xelab tb_tile_window_path -s tb_tile_window_path_sim
 xsim tb_tile_window_path_sim -runall
 
-xvlog -f rtl/filelists/tile_conv_tb.f
+xvlog -f rtl/filelists/current/tile_conv_tb.f
 xelab tb_single_conv_tile -s tb_single_conv_tile_sim
 xsim tb_single_conv_tile_sim -runall
 
-xvlog -f rtl/filelists/tile_conv_axi_tb.f
+xvlog -f rtl/filelists/current/tile_conv_axi_tb.f
 xelab tb_single_conv_tile_axi -s tb_single_conv_tile_axi_sim
 xsim tb_single_conv_tile_axi_sim -runall
 

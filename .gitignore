@@ -14,6 +14,8 @@ __pycache__/
 venv/
 
 # Vivado / FPGA build outputs
+/build/vivado/
+/build/pynq_upload/
 .Xil/
 xsim.dir/
 *.pb

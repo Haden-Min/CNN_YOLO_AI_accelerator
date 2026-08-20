@@ -120,7 +120,7 @@ with_zero_point < -128 → output = -128, clipped = 1
 파일명과 모듈명은 다음을 사용한다.
 
 ```text
-파일: rtl/pipeline_conv/requant_int32_to_int8.v
+파일: rtl/active/datapath/requant_int32_to_int8.v
 모듈: requant_int32_to_int8
 ```
 
@@ -299,7 +299,7 @@ def requant_int32_to_int8(acc: int, multiplier: int, shift: int,
 파일명과 top module은 다음을 사용한다.
 
 ```text
-파일: rtl/tb/tb_requant_int32_to_int8.v
+파일: rtl/tb/current/tb_requant_int32_to_int8.v
 top:  tb_requant_int32_to_int8
 ```
 
@@ -406,8 +406,8 @@ AXI packet의 TLAST 생성에 사용된다.
 완료 시 아래 파일을 전달한다.
 
 ```text
-rtl/pipeline_conv/requant_int32_to_int8.v
-rtl/tb/tb_requant_int32_to_int8.v
+rtl/active/datapath/requant_int32_to_int8.v
+rtl/tb/current/tb_requant_int32_to_int8.v
 rtl/filelists/requant_tb.f
 tests 또는 scripts 아래 Python golden/fixture 생성 파일
 README 또는 간단한 구현 메모

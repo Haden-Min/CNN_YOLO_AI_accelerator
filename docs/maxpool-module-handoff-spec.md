@@ -107,7 +107,7 @@ Unsigned 비교로 `8'hff`를 255로 해석하면 안 된다.
 파일명과 모듈명은 다음을 사용한다.
 
 ```text
-파일: rtl/pipeline_conv/maxpool2d_int8_tile.v
+파일: rtl/active/core/maxpool2d_int8_tile.v
 모듈: maxpool2d_int8_tile
 ```
 
@@ -410,7 +410,7 @@ def maxpool2x2_valid_int8(tile: np.ndarray, stride: int) -> np.ndarray:
 ## 12. 테스트벤치 요구사항
 
 ```text
-파일: rtl/tb/tb_maxpool2d_int8_tile.v
+파일: rtl/tb/current/tb_maxpool2d_int8_tile.v
 top:  tb_maxpool2d_int8_tile
 ```
 
@@ -497,8 +497,8 @@ Pool이 없는 convolution layer에서는 상위 mux가 MaxPool을 bypass한다.
 ## 16. 제출 파일
 
 ```text
-rtl/pipeline_conv/maxpool2d_int8_tile.v
-rtl/tb/tb_maxpool2d_int8_tile.v
+rtl/active/core/maxpool2d_int8_tile.v
+rtl/tb/current/tb_maxpool2d_int8_tile.v
 rtl/filelists/maxpool_tb.f
 Python golden 또는 fixture 생성 파일
 구현 메모/README

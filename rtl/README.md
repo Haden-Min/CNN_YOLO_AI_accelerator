@@ -1,61 +1,70 @@
-# RTL
+# RTL source layout
 
-This directory keeps the active Phase 2 single-conv design separate from the
-fixed legacy/reference files that were already in the repository.
-
-Use these filelists as the source of truth for the current Vivado project:
-
-- `rtl/filelists/phase2_pipeline_rtl.f`: synthesizable RTL only
-- `rtl/filelists/phase2_pipeline_tb.f`: RTL plus the PS/PL-style testbench
-- `rtl/filelists/phase2_pipeline_axi_tb_v2_416.f`: AXI-Lite/AXI-Stream
-  wrapper plus the 416x416 DMA-style testbench
-
-Current active hierarchy:
+The production synthesis top is:
 
 ```text
-top_single_conv_pipeline
-  conv_control_unit
-    single_conv_fsm
-  conv_memory_unit
-    conv_input_mem
-      conv_input_line_buffer
-      conv_window_buffer
-    conv_weight_mem
-    conv_bias_mem
-    conv_output_mem
-  conv_datapath
-    gen_mlt_lane[*].mlt
-    at
-    gen_acc_bank[0..8].acc
-    activation
+rtl/active/top_single_conv_tile_axi.v
 ```
 
-The PYNQ-facing wrapper is `top_single_conv_pipeline_axi`. It keeps the active
-line-buffered convolution core intact and adds:
+Use `top_single_conv_tile_axi` as the Vivado top module. The similarly named
+files under `rtl/legacy/` are preserved alternatives or earlier architectures;
+they are not part of the production source set.
 
-- AXI-Lite control/status registers
-- AXI-Stream input for one DMA MM2S payload
-- AXI-Stream output for one DMA S2MM output buffer
-
-The input stream order for the current 416x416 fixture is:
+## Directory map
 
 ```text
-initial input rows 0..2
-weight words
-bias words
-remaining input rows 3..415
+rtl/
+|-- active/                 Production 28x28 tile accelerator
+|   |-- top_single_conv_tile_axi.v
+|   |-- core/               Tile scheduling and the internal tile core
+|   |-- datapath/           Multiply, adder tree, accumulator, activation
+|   |-- memory/             Tile/weight/bias/partial-sum storage
+|   |-- interface/          AXI-Stream output FIFO
+|   `-- integration/        Optional Vivado IP packaging shell
+|-- tb/
+|   |-- current/            Tests for the production design
+|   `-- legacy/             Tests for archived implementations
+|-- filelists/
+|   |-- current/            Production build and regression filelists
+|   `-- legacy/             Archived design filelists
+`-- legacy/                 Non-production synthesizable RTL
 ```
 
-The wrapper holds `s_axis_tready` low until the line-buffered core needs the
-next input row, so a normal PYNQ DMA send buffer can contain the whole payload
-while the PL side backpressures row delivery.
+The production-only source list is
+`rtl/filelists/current/tile_conv_rtl.f`. It deliberately excludes the optional
+IP packaging shell and every legacy top. Vivado IP packaging adds
+`rtl/active/integration/cnn_tile_accel_ip.v` separately.
 
-Fixed legacy/reference files are not part of new development. Do not add new
-modules there, and do not add these files to the Phase 2 Vivado project unless
-you are intentionally restoring that older path:
+## Production hierarchy
 
-- `rtl/single_conv/`
-- `rtl/pipeline_conv/si.v`
-- `rtl/pipeline_conv/wbuf.v`
-- `rtl/pipeline_conv/weight_buffer_9.v`
-- root-level `rtl/si.v`, `rtl/wbuf.v`, `rtl/at.v`
+```text
+top_single_conv_tile_axi
+|-- top_single_conv_tile
+|   |-- tile_conv_controller
+|   |-- tile_input_loader
+|   |-- tile_line_buffer_3row
+|   |-- tile_window_generator_3x3
+|   |-- conv_weight_mem
+|   |-- conv_bias_mem
+|   `-- conv_datapath
+|       |-- mlt[*]
+|       |-- at
+|       |-- acc[*]
+|       `-- activation
+|-- tile_psum_buffer
+`-- axis_output_fifo
+```
+
+`cnn_tile_accel_ip` is only a fixed-parameter shell used by the Vivado IP
+packaging flow. It wraps the production top but is not the accelerator's
+canonical RTL top.
+
+## Tests
+
+From the repository root, run the current regression suite with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File vivado/run_rtl_tests.ps1
+```
+
+The test script compiles only filelists under `rtl/filelists/current/`.

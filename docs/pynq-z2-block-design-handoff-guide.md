@@ -1,25 +1,30 @@
 # PYNQ-Z2 28×28 Tile Accelerator Block Design Handoff
 
+> **정식 재현 경로:** 현재 Block Design과 bitstream 생성은 자동화되어 있다.
+> 팀원은 먼저 [`pynq-z2-reproduction-guide.md`](pynq-z2-reproduction-guide.md)의
+> 스크립트 기반 절차를 사용한다. 아래 내용은 GUI에서 연결을 이해하거나 수동으로
+> 점검할 때 쓰는 참고 문서다.
+
 ## 1. 목적과 검증 상태
 
 이 문서는 보드를 가진 담당자가 현재 RTL을 Vivado 2024.1에서 PYNQ-Z2의 PS,
 AXI DMA, DDR에 연결하고 최초 실기 동작을 재현하기 위한 작업 지시서이다.
 
-현재 보드용 top은 `top_single_conv_tile_axi`이다. 이전 5×5/416×416 실험 top인
+패키징 top은 `cnn_tile_accel_ip`이며 내부 보드용 top은
+`top_single_conv_tile_axi`이다. 이전 5×5/416×416 실험 top인
 `top_single_conv_pipeline_axi`와 혼동하지 않는다.
 
 현재 구현 범위:
 
-- `28×28×1` signed INT8 입력 타일
-- `3×3×1` signed INT8 weight와 INT32 bias 하나
+- `28×28×IC` signed INT8 입력 타일, IC=1~1024 순차 처리
+- 입력 채널별 `3×3` signed INT8 weight와 계층 INT32 bias 하나
 - padding 없는 valid convolution
 - `26×26×1 = 676`개의 signed INT32 출력
 - AXI4-Lite 제어, AXI4-Stream 입출력
 
-Vivado Simulator의 하위 모듈, 코어, AXI 테스트가 모두 통과했다. XC7Z020-1
-out-of-context 배치·배선은 100 MHz에서 `WNS +1.138 ns`, `TNS 0`이다. 이것은
-내부 RTL timing 결과이며 PS/DMA를 포함한 최종 block design도 반드시
-implementation 후 `WNS >= 0`인지 확인해야 한다.
+Vivado Simulator의 하위 모듈, 코어, AXI IC=1, AXI IC=3 누적 테스트가 모두
+통과했다. PS/DMA/SmartConnect/가속기를 포함한 XC7Z020-1 전체 구현은 100 MHz에서
+`WNS +0.946 ns`, `WHS +0.019 ns`, `TNS 0`, failing endpoint 0으로 통과했다.
 
 ## 2. 고정 환경
 
@@ -42,15 +47,15 @@ PYNQ-Z2 board preset이 Vivado에 보이지 않으면 TUL board file을 설치�
 저장소 root에서 다음 세 테스트를 실행한다.
 
 ```powershell
-C:\Xilinx\Vivado\2024.1\bin\xvlog.bat -f rtl/filelists/tile_window_tb.f
+C:\Xilinx\Vivado\2024.1\bin\xvlog.bat -f rtl/filelists/current/tile_window_tb.f
 C:\Xilinx\Vivado\2024.1\bin\xelab.bat tb_tile_window_path -s tb_tile_window_path_sim
 C:\Xilinx\Vivado\2024.1\bin\xsim.bat tb_tile_window_path_sim -runall
 
-C:\Xilinx\Vivado\2024.1\bin\xvlog.bat -f rtl/filelists/tile_conv_tb.f
+C:\Xilinx\Vivado\2024.1\bin\xvlog.bat -f rtl/filelists/current/tile_conv_tb.f
 C:\Xilinx\Vivado\2024.1\bin\xelab.bat tb_single_conv_tile -s tb_single_conv_tile_sim
 C:\Xilinx\Vivado\2024.1\bin\xsim.bat tb_single_conv_tile_sim -runall
 
-C:\Xilinx\Vivado\2024.1\bin\xvlog.bat -f rtl/filelists/tile_conv_axi_tb.f
+C:\Xilinx\Vivado\2024.1\bin\xvlog.bat -f rtl/filelists/current/tile_conv_axi_tb.f
 C:\Xilinx\Vivado\2024.1\bin\xelab.bat tb_single_conv_tile_axi -s tb_single_conv_tile_axi_sim
 C:\Xilinx\Vivado\2024.1\bin\xsim.bat tb_single_conv_tile_axi_sim -runall
 ```
@@ -66,7 +71,7 @@ PASS: tb_single_conv_tile_axi inputs=784 outputs=676 status=0x00000811
 ## 4. Custom IP 패키징
 
 1. PYNQ-Z2 RTL project를 만든다.
-2. `rtl/filelists/tile_conv_rtl.f`에 적힌 파일만 Design Sources에 추가한다.
+2. `rtl/filelists/current/tile_conv_rtl.f`에 적힌 파일만 Design Sources에 추가한다.
 3. synthesis top을 `top_single_conv_tile_axi`로 지정한다.
 4. **Tools > Create and Package New IP > Package your current project**를 선택한다.
 5. IP 이름은 예를 들어 `cnn_tile_accel`, version `1.0`으로 한다.
@@ -297,7 +302,7 @@ YOLOv3-Tiny의 padding=1 계층은 PS가 외곽 halo를 0으로 채우거나 PL�
 이 bitstream가 성공해도 전체 YOLOv3-Tiny가 완성된 것은 아니다. 다음 기능은 아직
 통합되지 않았다.
 
-- 입력 채널 block 병렬화와 `Cin` 순차 누산
+- 입력 채널 병렬화(`IC_PAR > 1`); 현재 `IC_PAR=1` 순차 누산은 구현됨
 - 여러 output channel의 weight/bias 반복 처리
 - 별도 1×1 convolution 경로 또는 3×3 datapath 재사용 모드
 - INT32→INT8 requantization

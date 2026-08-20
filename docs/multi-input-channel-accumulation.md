@@ -87,7 +87,7 @@ implementation에서 다시 확인해야 한다.
 저장소 루트에서 실행한다.
 
 ```powershell
-& "C:\Xilinx\Vivado\2024.1\bin\xvlog.bat" -f rtl/filelists/tile_conv_multi_ic_axi_tb.f
+& "C:\Xilinx\Vivado\2024.1\bin\xvlog.bat" -f rtl/filelists/current/tile_conv_multi_ic_axi_tb.f
 & "C:\Xilinx\Vivado\2024.1\bin\xelab.bat" tb_multi_ic_conv_tile_axi -s tb_multi_ic_conv_tile_axi_sim
 & "C:\Xilinx\Vivado\2024.1\bin\xsim.bat" tb_multi_ic_conv_tile_axi_sim -runall
 

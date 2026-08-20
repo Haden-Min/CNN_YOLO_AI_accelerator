@@ -122,11 +122,11 @@ controller의 다중-window issue가 추가로 필요하다.
 
 ## 재현 파일
 
-- RTL: `rtl/pipeline_conv/top_single_conv_tile_16.v`
-- AXI top: `rtl/pipeline_conv/top_single_conv_tile_axi_16.v`
+- RTL: `rtl/legacy/tile_16_variants/top_single_conv_tile_16.v`
+- AXI top: `rtl/legacy/tile_16_variants/top_single_conv_tile_axi_16.v`
 - Fixture: `sw/fixture/single_conv_tile_16/`
-- Functional TB: `rtl/filelists/tile_conv_16_tb.f`
-- AXI TB: `rtl/filelists/tile_conv_16_axi_tb.f`
-- Performance TB: `rtl/filelists/tile_conv_axi_perf_tb.f`
+- Functional TB: `rtl/filelists/legacy/tile_conv_16_tb.f`
+- AXI TB: `rtl/filelists/legacy/tile_conv_16_axi_tb.f`
+- Performance TB: `rtl/filelists/current/tile_conv_axi_perf_tb.f`
 - 28×28 reports: `reports/tile_conv_ooc/`
 - 16×16 reports: `reports/tile_conv_16_ooc/`

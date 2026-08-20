@@ -19,7 +19,7 @@ if {[info exists ::env(TILE_CONV_REPORT_NAME)]} {
 set report_dir [file join $repo_dir "reports" $report_name]
 file mkdir $report_dir
 
-set filelist_path [file join $repo_dir "rtl" "filelists" "tile_conv_rtl.f"]
+set filelist_path [file join $repo_dir "rtl" "filelists" "current" "tile_conv_rtl.f"]
 set filelist_handle [open $filelist_path r]
 set filelist_text [read $filelist_handle]
 close $filelist_handle
