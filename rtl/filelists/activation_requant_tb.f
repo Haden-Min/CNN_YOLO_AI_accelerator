@@ -1,0 +1,2 @@
+rtl/active/datapath/activation_requant_int8_stream.v
+rtl/tb/tb_activation_requant_int8_stream.v

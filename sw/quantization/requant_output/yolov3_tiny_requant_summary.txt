@@ -1,0 +1,121 @@
+YOLOv3-Tiny requant parameter summary
+Model: D:\a.Projects\cnn_accelerator\CNN_YOLO_AI_accelerator\sw\quantization\yolov3-tiny-416_full_integer_quant.tflite
+CONV_2D layers: 13
+Formula: real_scale ~= multiplier / 2^shift
+Rounding: nearest, exact halves away from zero
+
+Conv 0 (op 1):
+  activation=LEAKY_RELU mode=1
+  output_channels=16
+  input scale/zp=0.003921568859/-128
+  weight scales=16 range=[0.01763915829, 0.1619216651]
+  output scale/zp=0.262880981/-102
+  channel0 registers={'activation_mode': 1, 'multiplier_pos': 1738334100, 'shift_pos': 41, 'multiplier_neg': 1390667280, 'shift_neg': 44, 'zero_point': -102}
+  WARNING: TFLite has separate CONV_2D and LEAKY_RELU quantization boundaries; direct fusion removes the intermediate INT8 rounding and may not be bit-exact with TFLite.
+
+Conv 1 (op 4):
+  activation=LEAKY_RELU mode=1
+  output_channels=32
+  input scale/zp=0.262880981/-102
+  weight scales=32 range=[0.0005959277041, 0.006756391842]
+  output scale/zp=0.2128120363/-61
+  channel0 registers={'activation_mode': 1, 'multiplier_pos': 1122831929, 'shift_pos': 37, 'multiplier_neg': 1796531087, 'shift_neg': 41, 'zero_point': -61}
+  WARNING: TFLite has separate CONV_2D and LEAKY_RELU quantization boundaries; direct fusion removes the intermediate INT8 rounding and may not be bit-exact with TFLite.
+
+Conv 2 (op 7):
+  activation=LEAKY_RELU mode=1
+  output_channels=64
+  input scale/zp=0.2128120363/-61
+  weight scales=64 range=[0.000884447596, 0.01206237171]
+  output scale/zp=0.1395922601/-83
+  channel0 registers={'activation_mode': 1, 'multiplier_pos': 1111511499, 'shift_pos': 37, 'multiplier_neg': 1778418398, 'shift_neg': 41, 'zero_point': -83}
+  WARNING: TFLite has separate CONV_2D and LEAKY_RELU quantization boundaries; direct fusion removes the intermediate INT8 rounding and may not be bit-exact with TFLite.
+
+Conv 3 (op 10):
+  activation=LEAKY_RELU mode=1
+  output_channels=128
+  input scale/zp=0.1395922601/-83
+  weight scales=128 range=[0.0007520390791, 0.006439949386]
+  output scale/zp=0.1245928332/-94
+  channel0 registers={'activation_mode': 1, 'multiplier_pos': 1900932063, 'shift_pos': 40, 'multiplier_neg': 1520745650, 'shift_neg': 43, 'zero_point': -94}
+  WARNING: TFLite has separate CONV_2D and LEAKY_RELU quantization boundaries; direct fusion removes the intermediate INT8 rounding and may not be bit-exact with TFLite.
+
+Conv 4 (op 13):
+  activation=LEAKY_RELU mode=1
+  output_channels=256
+  input scale/zp=0.1245928332/-94
+  weight scales=256 range=[0.000647968438, 0.006682679057]
+  output scale/zp=0.08885835856/-96
+  channel0 registers={'activation_mode': 1, 'multiplier_pos': 1494035152, 'shift_pos': 39, 'multiplier_neg': 1195228121, 'shift_neg': 42, 'zero_point': -96}
+  WARNING: TFLite has separate CONV_2D and LEAKY_RELU quantization boundaries; direct fusion removes the intermediate INT8 rounding and may not be bit-exact with TFLite.
+
+Conv 5 (op 16):
+  activation=LEAKY_RELU mode=1
+  output_channels=512
+  input scale/zp=0.08885835856/-96
+  weight scales=512 range=[0.000326864887, 0.004560497589]
+  output scale/zp=0.07124809921/-94
+  channel0 registers={'activation_mode': 1, 'multiplier_pos': 1957051119, 'shift_pos': 39, 'multiplier_neg': 1565640895, 'shift_neg': 42, 'zero_point': -94}
+  WARNING: TFLite has separate CONV_2D and LEAKY_RELU quantization boundaries; direct fusion removes the intermediate INT8 rounding and may not be bit-exact with TFLite.
+
+Conv 6 (op 19):
+  activation=LEAKY_RELU mode=1
+  output_channels=1024
+  input scale/zp=0.07124809921/-94
+  weight scales=1024 range=[0.001358605339, 0.01376454625]
+  output scale/zp=0.2592221797/-104
+  channel0 registers={'activation_mode': 1, 'multiplier_pos': 1953609677, 'shift_pos': 41, 'multiplier_neg': 1562887741, 'shift_neg': 44, 'zero_point': -104}
+  WARNING: TFLite has separate CONV_2D and LEAKY_RELU quantization boundaries; direct fusion removes the intermediate INT8 rounding and may not be bit-exact with TFLite.
+
+Conv 7 (op 21):
+  activation=LEAKY_RELU mode=1
+  output_channels=256
+  input scale/zp=0.2592221797/-104
+  weight scales=256 range=[0.0001918131893, 0.002421224955]
+  output scale/zp=0.04349354282/-106
+  channel0 registers={'activation_mode': 1, 'multiplier_pos': 1156514454, 'shift_pos': 38, 'multiplier_neg': 1850423127, 'shift_neg': 42, 'zero_point': -106}
+  WARNING: TFLite has separate CONV_2D and LEAKY_RELU quantization boundaries; direct fusion removes the intermediate INT8 rounding and may not be bit-exact with TFLite.
+
+Conv 8 (op 23):
+  activation=LEAKY_RELU mode=1
+  output_channels=128
+  input scale/zp=0.04349354282/-106
+  weight scales=128 range=[0.002517108107, 0.007890069857]
+  output scale/zp=0.0781795308/-107
+  channel0 registers={'activation_mode': 1, 'multiplier_pos': 1381845552, 'shift_pos': 39, 'multiplier_neg': 1105476442, 'shift_neg': 42, 'zero_point': -107}
+  WARNING: TFLite has separate CONV_2D and LEAKY_RELU quantization boundaries; direct fusion removes the intermediate INT8 rounding and may not be bit-exact with TFLite.
+
+Conv 9 (op 26):
+  activation=LEAKY_RELU mode=1
+  output_channels=512
+  input scale/zp=0.04349354282/-106
+  weight scales=512 range=[0.0002539772831, 0.005141636822]
+  output scale/zp=0.06582264602/-95
+  channel0 registers={'activation_mode': 1, 'multiplier_pos': 1499971880, 'shift_pos': 41, 'multiplier_neg': 1199977504, 'shift_neg': 44, 'zero_point': -95}
+  WARNING: TFLite has separate CONV_2D and LEAKY_RELU quantization boundaries; direct fusion removes the intermediate INT8 rounding and may not be bit-exact with TFLite.
+
+Conv 10 (op 28):
+  activation=LINEAR mode=0
+  output_channels=255
+  input scale/zp=0.06582264602/-95
+  weight scales=255 range=[0.0009959274903, 0.008230316453]
+  output scale/zp=0.169989422/59
+  channel0 registers={'activation_mode': 0, 'multiplier_pos': 1576208098, 'shift_pos': 40, 'multiplier_neg': 1576208098, 'shift_neg': 40, 'zero_point': 59}
+
+Conv 11 (op 85):
+  activation=LEAKY_RELU mode=1
+  output_channels=256
+  input scale/zp=0.08885835856/-96
+  weight scales=256 range=[0.0001840792538, 0.002515945816]
+  output scale/zp=0.05203969777/-102
+  channel0 registers={'activation_mode': 1, 'multiplier_pos': 1782571698, 'shift_pos': 41, 'multiplier_neg': 1426057358, 'shift_neg': 44, 'zero_point': -102}
+  WARNING: TFLite has separate CONV_2D and LEAKY_RELU quantization boundaries; direct fusion removes the intermediate INT8 rounding and may not be bit-exact with TFLite.
+
+Conv 12 (op 87):
+  activation=LINEAR mode=0
+  output_channels=255
+  input scale/zp=0.05203969777/-102
+  weight scales=255 range=[0.001233889721, 0.005969177]
+  output scale/zp=0.1380804926/47
+  channel0 registers={'activation_mode': 0, 'multiplier_pos': 1497999000, 'shift_pos': 40, 'multiplier_neg': 1497999000, 'shift_neg': 40, 'zero_point': 47}
+
