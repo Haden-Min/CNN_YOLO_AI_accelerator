@@ -1,0 +1,5 @@
+PASS: all 13 layers compared with existing requant_output JSON from the same model SHA256.
+Weight sums, scales, original bias and corrected bias match for every output channel.
+All HEX files passed write/read round-trip and SHA256 verification.
+All 3x3 DMA words match loaded OIHW weights and corrected bias.
+PYNQ hardware execution was not performed.
